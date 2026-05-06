@@ -43,12 +43,12 @@ import type { FoodItem, DayLog, UserSettings, MealType, MealEntry } from '../typ
 
 // Configuração do Firebase
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDyvk2-Dsd9wARSiPy57vjzI0XMF09WGpM",
+  authDomain: "nutritrack-silk.firebaseapp.com",
+  projectId: "nutritrack-silk",
+  storageBucket: "nutritrack-silk.firebasestorage.app",
+  messagingSenderId: "1031560309871",
+  appId: "1:1031560309871:web:019e83d9cdaa66fe3b719a"
 };
 
 // Inicialização do Firebase

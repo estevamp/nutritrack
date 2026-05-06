@@ -89,6 +89,11 @@ export async function getRecentLogs(days: number): Promise<DayLog[]> {
     .slice(0, days);
 }
 
+export async function getAllDayLogs(): Promise<DayLog[]> {
+  const db = await getDB();
+  return db.getAll('dayLogs');
+}
+
 export async function addMealEntry(date: string, meal: MealType, entry: MealEntry): Promise<void> {
   const db = await getDB();
   const log = await getDayLog(date) || {

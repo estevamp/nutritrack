@@ -5,6 +5,7 @@ import FoodsPage from './pages/FoodsPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import UpdatePrompt from './components/UpdatePrompt';
+import MigrationTool from './components/MigrationTool';
 
 function App() {
   return (
@@ -16,6 +17,8 @@ function App() {
           <Route path="history" element={<HistoryPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
+        {/* Rota para ferramenta de migração */}
+        <Route path="/migrate" element={<MigrationTool />} />
       </Routes>
       <UpdatePrompt />
     </BrowserRouter>
