@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     VitePWA({
       strategies: 'injectManifest',
+      injectManifest: {
+        swSrc: 'public/sw.ts',
+      },
       registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {

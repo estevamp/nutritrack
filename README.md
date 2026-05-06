@@ -1,1 +1,1 @@
-# nutrition-tracker
+# NutriTrack

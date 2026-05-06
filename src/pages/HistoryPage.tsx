@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { format, parseISO, subDays } from 'date-fns';
+import React, { useEffect, useState, useMemo } from 'react';
+import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getRecentLogs } from '../services/db';
@@ -107,5 +107,4 @@ const HistoryPage: React.FC = () => {
   );
 };
 
-import { useMemo } from 'react';
 export default HistoryPage;
