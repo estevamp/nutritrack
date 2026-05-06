@@ -6,7 +6,7 @@ import { useDayLog } from '../hooks/useDayLog';
 import NutrientSummaryCard from '../components/NutrientSummaryCard';
 import MealSection from '../components/MealSection';
 import FoodSearchModal from '../components/FoodSearchModal';
-import { MealType, FoodItem } from '../types';
+import type { MealType, FoodItem } from '../types';
 
 const HomePage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());

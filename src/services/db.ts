@@ -1,5 +1,5 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { FoodItem, DayLog, UserSettings, MealType, MealEntry } from '../types';
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import type { FoodItem, DayLog, UserSettings, MealType, MealEntry } from '../types';
 
 interface NutriTrackDB extends DBSchema {
   foods: {

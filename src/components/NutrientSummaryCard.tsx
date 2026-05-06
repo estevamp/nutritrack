@@ -1,5 +1,5 @@
 import React from 'react';
-import { NutrientInfo, NutrientGoals } from '../types';
+import type { NutrientInfo, NutrientGoals } from '../types';
 import NutrientBar from './NutrientBar';
 
 interface NutrientSummaryCardProps {

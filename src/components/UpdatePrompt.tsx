@@ -1,26 +1,34 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const UpdatePrompt: React.FC = () => {
+  const [showPrompt, setShowPrompt] = useState(true);
+
   const {
-    offlineReady: [offlineReady, setOfflineReady],
-    needUpdate: [needUpdate, setNeedUpdate],
+    offlineReady,
+    needUpdate,
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(r) {
       console.log('SW Registered: ' + r);
     },
-    onRegisterError(error) {
+    onRegisterError(error: Error) {
       console.log('SW registration error', error);
     },
   });
 
-  const close = () => {
-    setOfflineReady(false);
-    setNeedUpdate(false);
+  const handleUpdate = () => {
+    updateServiceWorker(true);
   };
 
-  if (!offlineReady && !needUpdate) return null;
+  const handleClose = () => {
+    setShowPrompt(false);
+  };
+
+  // Só mostra se há algo a mostrar E o usuário não fechou
+  if (!showPrompt || (!offlineReady && !needUpdate)) {
+    return null;
+  }
 
   return (
     <div style={{
@@ -50,7 +58,7 @@ const UpdatePrompt: React.FC = () => {
       <div style={{ display: 'flex', gap: '8px' }}>
         {needUpdate && (
           <button
-            onClick={() => updateServiceWorker(true)}
+            onClick={handleUpdate}
             style={{
               flex: 1,
               padding: '10px',
@@ -66,7 +74,7 @@ const UpdatePrompt: React.FC = () => {
           </button>
         )}
         <button
-          onClick={close}
+          onClick={handleClose}
           style={{
             flex: 1,
             padding: '10px',

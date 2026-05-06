@@ -1,4 +1,4 @@
-import { FoodItem } from '../types';
+import {type FoodItem } from '../types';
 
 export const commonFoods: FoodItem[] = [
   // GRÃOS E CARBOIDRATOS (12 itens)

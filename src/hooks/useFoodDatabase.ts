@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { FoodItem } from '../types';
+import { type FoodItem } from '../types';
 import * as db from '../services/db';
 import { commonFoods } from '../data/commonFoods';
 

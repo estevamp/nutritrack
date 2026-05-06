@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FoodItem, NutrientInfo } from '../types';
+import type { FoodItem, NutrientInfo } from '../types';
 import { X } from 'lucide-react';
 
 interface AddCustomFoodModalProps {

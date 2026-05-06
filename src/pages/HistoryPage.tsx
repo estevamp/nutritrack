@@ -3,7 +3,7 @@ import { format, parseISO, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getRecentLogs } from '../services/db';
-import { DayLog } from '../types';
+import { type DayLog } from '../types';
 import { Calendar, ChevronRight } from 'lucide-react';
 
 const HistoryPage: React.FC = () => {

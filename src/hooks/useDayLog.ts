@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { DayLog, MealType, FoodItem, MealEntry, NutrientInfo, NutrientGoals } from '../types';
+import type { DayLog, MealType, FoodItem, MealEntry, NutrientInfo, NutrientGoals } from '../types';
 import * as db from '../services/db';
 
 export function useDayLog(date: string) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { MealType, MealEntry } from '../types';
+import type { MealType, MealEntry } from '../types';
 import { Plus, Trash2, Coffee, Utensils, Moon, Apple } from 'lucide-react';
 
 interface MealSectionProps {
