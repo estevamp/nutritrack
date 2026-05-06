@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { FoodItem, NutrientInfo } from '../types';
+import React, { useState, useMemo } from 'react';
+import type { FoodItem, NutrientInfo } from '../types';
 import { useFoodDatabase } from '../hooks/useFoodDatabase';
 import { Search, X, ChevronRight, Plus, Minus } from 'lucide-react';
 

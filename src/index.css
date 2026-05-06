@@ -113,11 +113,6 @@ input:focus, select:focus {
   box-shadow: 0 0 0 2px var(--color-primary-light);
 }
 
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
 code {
   font-size: 15px;
   line-height: 135%;
