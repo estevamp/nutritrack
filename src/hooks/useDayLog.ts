@@ -74,6 +74,11 @@ export function useDayLog(date: string) {
     await refreshLog();
   };
 
+  const updateEntry = async (meal: MealType, entryId: string, servings: number) => {
+    await db.updateMealEntry(date, meal, entryId, servings);
+    await refreshLog();
+  };
+
   const totals = useMemo(() => {
     return dayLog?.totals || { calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0, saturatedFat: 0, fiber: 0, sodium: 0 };
   }, [dayLog]);
@@ -118,6 +123,7 @@ export function useDayLog(date: string) {
     isLoading,
     addFood,
     removeEntry,
+    updateEntry,
     totals,
     mealTotals,
     progressPercent,

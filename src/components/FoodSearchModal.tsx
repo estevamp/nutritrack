@@ -1,12 +1,13 @@
-import React, { useState, useMemo } from 'react';
-import type { FoodItem, NutrientInfo } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import type { FoodItem, NutrientInfo, MealEntry } from '../types';
 import { useFoodDatabase } from '../hooks/useFoodDatabase';
-import { Search, X, ChevronRight, Plus, Minus } from 'lucide-react';
+import { Search, X, ChevronRight, Plus, Minus, Edit2 } from 'lucide-react';
 
 interface FoodSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectFood: (food: FoodItem, servings: number) => void;
+  editingEntry?: MealEntry | null;
 }
 
 const categories = [
@@ -21,13 +22,28 @@ const categories = [
   { id: 'snack', label: 'Lanches' },
 ];
 
-const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClose, onSelectFood }) => {
+const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClose, onSelectFood, editingEntry }) => {
   const { foods, searchFoods } = useFoodDatabase();
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [servings, setServings] = useState(1);
   const [activeTab, setActiveTab] = useState<'all' | 'custom'>('all');
+
+  // When editing an entry, pre-populate the modal with the food and servings
+  useEffect(() => {
+    if (editingEntry && isOpen) {
+      // Find the food in the database
+      const food = foods.find(f => f.id === editingEntry.foodId);
+      if (food) {
+        setSelectedFood(food);
+        setServings(editingEntry.servingsConsumed);
+      }
+    } else if (!editingEntry) {
+      setSelectedFood(null);
+      setServings(1);
+    }
+  }, [editingEntry, isOpen, foods]);
 
   // Debounce search
   const filteredFoods = useMemo(() => {
@@ -94,7 +110,7 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClose, onSe
       }}>
         {/* Header */}
         <div style={{ padding: '16px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0 }}>Adicionar Alimento</h3>
+          <h3 style={{ margin: 0 }}>{editingEntry ? 'Editar Alimento' : 'Adicionar Alimento'}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X /></button>
         </div>
 
@@ -244,9 +260,9 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClose, onSe
               </button>
               <button 
                 onClick={handleConfirm}
-                style={{ flex: 2, padding: '14px', borderRadius: '12px', border: 'none', background: '#16a34a', color: '#fff', fontWeight: 600 }}
+                style={{ flex: 2, padding: '14px', borderRadius: '12px', border: 'none', background: '#16a34a', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
-                Adicionar
+                {editingEntry ? <><Edit2 size={18} /> Salvar</> : <><Plus size={18} /> Adicionar</>}
               </button>
             </div>
           </div>

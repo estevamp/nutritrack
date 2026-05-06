@@ -1,12 +1,13 @@
 import React from 'react';
 import type { MealType, MealEntry } from '../types';
-import { Plus, Trash2, Coffee, Utensils, Moon, Apple } from 'lucide-react';
+import { Plus, Trash2, Edit2, Coffee, Utensils, Moon, Apple } from 'lucide-react';
 
 interface MealSectionProps {
   mealType: MealType;
   entries: MealEntry[];
   onAdd: () => void;
   onRemove: (entryId: string) => void;
+  onEdit: (entry: MealEntry) => void;
 }
 
 const mealConfig = {
@@ -16,7 +17,7 @@ const mealConfig = {
   snack: { label: 'Lanches', icon: Apple, color: '#ec4899' },
 };
 
-const MealSection: React.FC<MealSectionProps> = ({ mealType, entries, onAdd, onRemove }) => {
+const MealSection: React.FC<MealSectionProps> = ({ mealType, entries, onAdd, onRemove, onEdit }) => {
   const config = mealConfig[mealType];
   const Icon = config.icon;
 
@@ -85,24 +86,40 @@ const MealSection: React.FC<MealSectionProps> = ({ mealType, entries, onAdd, onR
                 padding: '8px 0',
                 borderTop: '1px solid #f3f4f6'
               }}>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1 }} onClick={() => onEdit(entry)} role="button" tabIndex={0}>
                   <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{entry.foodName}</div>
                   <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
                     {entry.servingsConsumed} porção(ões) • {entry.nutrients.calories} kcal
                   </div>
                 </div>
-                <button 
-                  onClick={() => onRemove(entry.id)}
-                  style={{ 
-                    backgroundColor: 'transparent', 
-                    border: 'none', 
-                    color: '#ef4444', 
-                    cursor: 'pointer',
-                    padding: '4px'
-                  }}
-                >
-                  <Trash2 size={16} />
-                </button>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <button 
+                    onClick={() => onEdit(entry)}
+                    aria-label={`Editar ${entry.foodName}`}
+                    style={{ 
+                      backgroundColor: 'transparent', 
+                      border: 'none', 
+                      color: '#6b7280', 
+                      cursor: 'pointer',
+                      padding: '4px'
+                    }}
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                  <button 
+                    onClick={() => onRemove(entry.id)}
+                    aria-label={`Remover ${entry.foodName}`}
+                    style={{ 
+                      backgroundColor: 'transparent', 
+                      border: 'none', 
+                      color: '#ef4444', 
+                      cursor: 'pointer',
+                      padding: '4px'
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
