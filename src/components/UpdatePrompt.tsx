@@ -33,6 +33,7 @@ const UpdatePrompt: React.FC = () => {
   }
 
   return (
+    needUpdate && (
     <div style={{
       position: 'fixed',
       bottom: '80px',
@@ -49,13 +50,11 @@ const UpdatePrompt: React.FC = () => {
       border: '1px solid #f3f4f6',
       animation: 'slideUp 0.3s ease-out'
     }}>
-      <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
-        {offlineReady ? (
-          <span>App pronto para uso offline!</span>
-        ) : (
+      {needUpdate && (
+        <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
           <span>Nova versão disponível! Deseja atualizar?</span>
-        )}
-      </div>
+        </div>
+      )}
       
       <div style={{ display: 'flex', gap: '8px' }}>
         {needUpdate && (
@@ -92,6 +91,7 @@ const UpdatePrompt: React.FC = () => {
         </button>
       </div>
     </div>
+    )
   );
 };
 
