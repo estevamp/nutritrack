@@ -151,6 +151,61 @@ export async function removeMealEntry(date: string, meal: MealType, entryId: str
   await db.put('dayLogs', log);
 }
 
+export async function updateMealEntry(date: string, meal: MealType, entryId: string, servingsConsumed: number): Promise<void> {
+  const db = await getDB();
+  const log = await getDayLog(date);
+  if (!log) return;
+
+  const entryIndex = log.meals[meal].findIndex(e => e.id === entryId);
+  if (entryIndex === -1) return;
+
+  const entry = log.meals[meal][entryIndex];
+  
+  // Get the original food to recalculate nutrients based on new servings
+  const originalFood = await getFoodById(entry.foodId);
+  if (!originalFood) return;
+
+  // Recalculate nutrients with new servings
+  const newNutrients = {
+    calories: Math.round(originalFood.nutrients.calories * servingsConsumed),
+    protein: Number((originalFood.nutrients.protein * servingsConsumed).toFixed(1)),
+    carbs: Number((originalFood.nutrients.carbs * servingsConsumed).toFixed(1)),
+    sugar: Number((originalFood.nutrients.sugar * servingsConsumed).toFixed(1)),
+    fat: Number((originalFood.nutrients.fat * servingsConsumed).toFixed(1)),
+    saturatedFat: Number((originalFood.nutrients.saturatedFat * servingsConsumed).toFixed(1)),
+    fiber: Number((originalFood.nutrients.fiber * servingsConsumed).toFixed(1)),
+    sodium: Math.round(originalFood.nutrients.sodium * servingsConsumed),
+  };
+
+  // Update the entry
+  log.meals[meal][entryIndex] = {
+    ...entry,
+    servingsConsumed,
+    nutrients: newNutrients
+  };
+
+  // Recalculate totals
+  const allEntries = [
+    ...log.meals.breakfast,
+    ...log.meals.lunch,
+    ...log.meals.dinner,
+    ...log.meals.snack
+  ];
+
+  log.totals = allEntries.reduce((acc, curr) => ({
+    calories: acc.calories + curr.nutrients.calories,
+    protein: acc.protein + curr.nutrients.protein,
+    carbs: acc.carbs + curr.nutrients.carbs,
+    sugar: acc.sugar + curr.nutrients.sugar,
+    fat: acc.fat + curr.nutrients.fat,
+    saturatedFat: acc.saturatedFat + curr.nutrients.saturatedFat,
+    fiber: acc.fiber + curr.nutrients.fiber,
+    sodium: acc.sodium + curr.nutrients.sodium,
+  }), { calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0, saturatedFat: 0, fiber: 0, sodium: 0 });
+
+  await db.put('dayLogs', log);
+}
+
 // Settings
 export async function getSettings(): Promise<UserSettings | undefined> {
   const db = await getDB();

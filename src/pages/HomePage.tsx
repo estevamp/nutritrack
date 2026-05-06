@@ -6,26 +6,38 @@ import { useDayLog } from '../hooks/useDayLog';
 import NutrientSummaryCard from '../components/NutrientSummaryCard';
 import MealSection from '../components/MealSection';
 import FoodSearchModal from '../components/FoodSearchModal';
-import type { MealType, FoodItem } from '../types';
+import type { MealType, FoodItem, MealEntry } from '../types';
 
 const HomePage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   
-  const { dayLog, isLoading, addFood, removeEntry, totals } = useDayLog(dateStr);
+  const { dayLog, isLoading, addFood, removeEntry, updateEntry, totals } = useDayLog(dateStr);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeMeal, setActiveMeal] = useState<MealType>('breakfast');
+  const [editingEntry, setEditingEntry] = useState<MealEntry | null>(null);
 
   const handlePrevDay = () => setSelectedDate(subDays(selectedDate, 1));
   const handleNextDay = () => setSelectedDate(addDays(selectedDate, 1));
 
   const openSearch = (meal: MealType) => {
     setActiveMeal(meal);
+    setEditingEntry(null);
+    setIsSearchOpen(true);
+  };
+
+  const handleEdit = (entry: MealEntry) => {
+    setEditingEntry(entry);
     setIsSearchOpen(true);
   };
 
   const handleSelectFood = (food: FoodItem, servings: number) => {
-    addFood(activeMeal, food, servings);
+    if (editingEntry) {
+      updateEntry(activeMeal, editingEntry.id, servings);
+    } else {
+      addFood(activeMeal, food, servings);
+    }
+    setEditingEntry(null);
   };
 
   if (isLoading) return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando...</div>;
@@ -63,24 +75,28 @@ const HomePage: React.FC = () => {
           entries={dayLog?.meals.breakfast || []} 
           onAdd={() => openSearch('breakfast')} 
           onRemove={(id) => removeEntry('breakfast', id)} 
+          onEdit={handleEdit}
         />
         <MealSection 
           mealType="lunch" 
           entries={dayLog?.meals.lunch || []} 
           onAdd={() => openSearch('lunch')} 
           onRemove={(id) => removeEntry('lunch', id)} 
+          onEdit={handleEdit}
         />
         <MealSection 
           mealType="dinner" 
           entries={dayLog?.meals.dinner || []} 
           onAdd={() => openSearch('dinner')} 
           onRemove={(id) => removeEntry('dinner', id)} 
+          onEdit={handleEdit}
         />
         <MealSection 
           mealType="snack" 
           entries={dayLog?.meals.snack || []} 
           onAdd={() => openSearch('snack')} 
           onRemove={(id) => removeEntry('snack', id)} 
+          onEdit={handleEdit}
         />
       </div>
 
@@ -111,8 +127,12 @@ const HomePage: React.FC = () => {
 
       <FoodSearchModal 
         isOpen={isSearchOpen} 
-        onClose={() => setIsSearchOpen(false)} 
+        onClose={() => {
+          setIsSearchOpen(false);
+          setEditingEntry(null);
+        }} 
         onSelectFood={handleSelectFood} 
+        editingEntry={editingEntry}
       />
     </div>
   );
