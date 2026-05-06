@@ -1,0 +1,173 @@
+import React, { useState, useEffect } from 'react';
+import { useGoals } from '../hooks/useDayLog';
+import { getSettings, saveSettings, exportAllData, importData } from '../services/db';
+import { Download, Upload, Trash2, Save, User } from 'lucide-react';
+
+const SettingsPage: React.FC = () => {
+  const { goals, saveGoals, isLoading: goalsLoading } = useGoals();
+  const [userName, setUserName] = useState('Usuário');
+  const [localGoals, setLocalGoals] = useState(goals);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const settings = await getSettings();
+      if (settings) {
+        setUserName(settings.name);
+        setLocalGoals(settings.goals);
+      }
+    };
+    loadSettings();
+  }, [goals]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    await saveSettings({ name: userName, goals: localGoals });
+    await saveGoals(localGoals);
+    setIsSaving(false);
+    alert('Configurações salvas com sucesso!');
+  };
+
+  const handleExport = async () => {
+    const data = await exportAllData();
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `nutritrack-data-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const json = event.target?.result as string;
+        await importData(json);
+        alert('Dados importados com sucesso! O app será recarregado.');
+        window.location.reload();
+      } catch (err) {
+        alert('Erro ao importar arquivo. Verifique se o formato é válido.');
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleClearData = async () => {
+    if (confirm('TEM CERTEZA? Isso apagará todos os seus registros e alimentos personalizados permanentemente.')) {
+      indexedDB.deleteDatabase('nutrition-tracker-db');
+      alert('Todos os dados foram apagados. O app será reiniciado.');
+      window.location.reload();
+    }
+  };
+
+  if (goalsLoading) return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando...</div>;
+
+  return (
+    <div className="page-container" style={{ padding: '16px' }}>
+      <h2 style={{ marginBottom: '20px' }}>Configurações</h2>
+
+      {/* Profile Section */}
+      <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ backgroundColor: '#dcfce7', padding: '10px', borderRadius: '12px' }}>
+            <User color="#16a34a" />
+          </div>
+          <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Perfil</h3>
+        </div>
+        
+        <div style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>Seu Nome</label>
+          <input 
+            type="text" 
+            value={userName} 
+            onChange={e => setUserName(e.target.value)}
+            style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: '1rem' }}
+          />
+        </div>
+      </div>
+
+      {/* Goals Section */}
+      <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem' }}>Metas Diárias</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {[
+            { key: 'calories', label: 'Calorias (kcal)' },
+            { key: 'protein', label: 'Proteína (g)' },
+            { key: 'carbs', label: 'Carbos (g)' },
+            { key: 'fat', label: 'Gordura (g)' },
+            { key: 'sugar', label: 'Açúcar (g)' },
+            { key: 'fiber', label: 'Fibra (g)' },
+            { key: 'sodium', label: 'Sódio (mg)' },
+          ].map(goal => (
+            <div key={goal.key}>
+              <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>{goal.label}</label>
+              <input 
+                type="number" 
+                value={localGoals[goal.key as keyof typeof localGoals]} 
+                onChange={e => setLocalGoals({ ...localGoals, [goal.key]: parseInt(e.target.value) || 0 })}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              />
+            </div>
+          ))}
+        </div>
+        
+        <button 
+          onClick={handleSave}
+          disabled={isSaving}
+          style={{ 
+            width: '100%', marginTop: '20px', padding: '14px', borderRadius: '12px', border: 'none', 
+            backgroundColor: '#16a34a', color: '#fff', fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+          }}
+        >
+          <Save size={20} /> {isSaving ? 'Salvando...' : 'Salvar Metas'}
+        </button>
+      </div>
+
+      {/* Data Management */}
+      <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '40px' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem' }}>Dados e Backup</h3>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button 
+            onClick={handleExport}
+            style={{ 
+              width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e5e7eb', 
+              backgroundColor: '#fff', color: '#374151', fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+            }}
+          >
+            <Download size={18} /> Exportar JSON
+          </button>
+          
+          <label style={{ 
+            width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e5e7eb', 
+            backgroundColor: '#fff', color: '#374151', fontWeight: 600, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textAlign: 'center'
+          }}>
+            <Upload size={18} /> Importar JSON
+            <input type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} />
+          </label>
+          
+          <button 
+            onClick={handleClearData}
+            style={{ 
+              width: '100%', padding: '12px', borderRadius: '10px', border: 'none', 
+              backgroundColor: '#fee2e2', color: '#ef4444', fontWeight: 600, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '8px'
+            }}
+          >
+            <Trash2 size={18} /> Limpar Tudo
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SettingsPage;
