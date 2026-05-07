@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useGoals } from '../hooks/useDayLog';
+import { useAuth } from '../auth/useAuth';
 import { getSettings, saveSettings } from '../services/db';
 import { exportAllDataFromFirestore, importDataToFirestore } from '../services/firebase';
-import { Download, Upload, Trash2, Save, User, Database } from 'lucide-react';
+import { Download, Upload, Trash2, Save, User, LogOut } from 'lucide-react';
 import { auth } from '../services/firebase';
 
 const SettingsPage: React.FC = () => {
+  const { signOut } = useAuth();
   const { goals, saveGoals, isLoading: goalsLoading } = useGoals();
   const [userName, setUserName] = useState('Usuário');
   const [localGoals, setLocalGoals] = useState(goals);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -70,6 +73,14 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      setIsSigningOut(true);
+      await signOut();
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   if (goalsLoading) return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando...</div>;
 
@@ -136,7 +147,7 @@ const SettingsPage: React.FC = () => {
       </div>
 
       {/* Data Management */}
-      <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '40px' }}>
+      <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '20px' }}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem' }}>Dados e Backup</h3>
 
         {/* Traditional Export/Import */}
@@ -174,47 +185,36 @@ const SettingsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Firebase Migration Section */}
       <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-          <div style={{ backgroundColor: '#dcfce7', padding: '10px', borderRadius: '12px' }}>
-            <Database color="#16a34a" />
+          <div style={{ backgroundColor: '#fee2e2', padding: '10px', borderRadius: '12px' }}>
+            <LogOut color="#ef4444" />
           </div>
-          <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Migrar para Firebase</h3>
+          <h3 style={{ margin: 0, fontSize: '1.1rem' }}>Conta</h3>
         </div>
-        
-        <p style={{ fontSize: '0.9rem', color: '#6b7280', marginBottom: '16px', lineHeight: '1.5' }}>
-          Transfira seus dados do armazenamento local (IndexedDB) para o Firebase Firestore.
-          Após a migração, você poderá acessar seus dados de qualquer dispositivo.
-        </p>
-        
-        <a
-          href="/migrate"
-          target="_blank"
-          rel="noopener noreferrer"
+
+        <button
+          onClick={handleSignOut}
+          disabled={isSigningOut}
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
             width: '100%',
-            padding: '14px',
+            padding: '12px',
             borderRadius: '12px',
             border: 'none',
-            backgroundColor: '#16a34a',
+            backgroundColor: '#ef4444',
             color: '#fff',
             fontWeight: 600,
-            textDecoration: 'none',
-            cursor: 'pointer'
+            cursor: isSigningOut ? 'not-allowed' : 'pointer',
+            opacity: isSigningOut ? 0.7 : 1
           }}
         >
-          <Database size={20} />
-          Abrir Ferramenta de Migração
-        </a>
-        
-        <p style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '12px', textAlign: 'center' }}>
-          💡 A ferramenta será aberta em uma nova aba
-        </p>
+          <LogOut size={18} />
+          {isSigningOut ? 'Saindo...' : 'Sair'}
+        </button>
       </div>
     </div>
   );

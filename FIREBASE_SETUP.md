@@ -130,25 +130,7 @@ const dayLog = {
 await saveDayLogToFirestore(dayLog);
 ```
 
-## 7. Migração do IndexedDB para Firebase
-
-Se você deseja migrar os dados existentes do IndexedDB para o Firebase:
-
-1. Exporte os dados do IndexedDB usando a função `exportAllData()` do `db.ts`
-2. Importe os dados para o Firebase usando `importDataToFirestore()`
-
-```typescript
-import { exportAllData } from './services/db';
-import { importDataToFirestore } from './services/firebase';
-
-async function migrateData() {
-  const data = await exportAllData();
-  await importDataToFirestore(data);
-  console.log('Migração concluída!');
-}
-```
-
-## 8. Considerações Importantes
+## 7. Considerações Importantes
 
 ### Autenticação
 - O serviço usa autenticação anônima por padrão
@@ -166,7 +148,7 @@ async function migrateData() {
 - Firestore suporta persistência offline automaticamente
 - Os dados são sincronizados quando a conexão é restabelecida
 
-## 9. Estrutura do Banco de Dados
+## 8. Estrutura do Banco de Dados
 
 O Firebase Firestore usará as seguintes coleções:
 
@@ -176,7 +158,7 @@ O Firebase Firestore usará as seguintes coleções:
 
 Cada documento terá um campo `updatedAt` com timestamp para controle de versões.
 
-## 10. Links Úteis
+## 9. Links Úteis
 
 - [Documentação do Firebase](https://firebase.google.com/docs)
 - [Documentação do Firestore](https://firebase.google.com/docs/firestore)
