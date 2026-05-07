@@ -42,30 +42,45 @@ async function getCurrentUserId(): Promise<string> {
 // ==================== Day Log Functions ====================
 
 export async function saveDayLog(userId: string, dayLog: DayLog): Promise<string> {
-  const logsRef = collection(firebaseDb, LOGS_COLLECTION);
-  const q = query(
-    logsRef,
-    where('userId', '==', userId),
-    where('date', '==', dayLog.date)
-  );
-  
-  const existingDocs = await getDocs(q);
-  
-  if (existingDocs.empty) {
-    const docRef = await addDoc(logsRef, {
-      userId,
-      ...dayLog,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
-    return docRef.id;
-  } else {
-    const docId = existingDocs.docs[0].id;
-    await updateDoc(doc(firebaseDb, LOGS_COLLECTION, docId), {
-      ...dayLog,
-      updatedAt: Timestamp.now(),
-    });
-    return docId;
+  try {
+    const logsRef = collection(firebaseDb, LOGS_COLLECTION);
+    const q = query(
+      logsRef,
+      where('userId', '==', userId),
+      where('date', '==', dayLog.date)
+    );
+    
+    const existingDocs = await getDocs(q);
+    
+    if (existingDocs.empty) {
+      console.log(`[DB] Creating new day log for user ${userId} on ${dayLog.date}`);
+      const docRef = await addDoc(logsRef, {
+        userId,
+        date: dayLog.date,
+        meals: dayLog.meals,
+        totals: dayLog.totals,
+        goals: dayLog.goals,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      console.log(`[DB] Day log created with ID: ${docRef.id}`);
+      return docRef.id;
+    } else {
+      console.log(`[DB] Updating existing day log for user ${userId} on ${dayLog.date}`);
+      const docId = existingDocs.docs[0].id;
+      await updateDoc(doc(firebaseDb, LOGS_COLLECTION, docId), {
+        date: dayLog.date,
+        meals: dayLog.meals,
+        totals: dayLog.totals,
+        goals: dayLog.goals,
+        updatedAt: Timestamp.now(),
+      });
+      console.log(`[DB] Day log updated: ${docId}`);
+      return docId;
+    }
+  } catch (error) {
+    console.error('[DB] Error saving day log:', error);
+    throw error;
   }
 }
 
@@ -91,18 +106,29 @@ export async function getDayLogs(
 }
 
 export async function getDayLog(userId: string, date: string): Promise<DayLog | null> {
-  const logsRef = collection(firebaseDb, LOGS_COLLECTION);
-  const q = query(
-    logsRef,
-    where('userId', '==', userId),
-    where('date', '==', date)
-  );
+  try {
+    console.log(`[DB] Fetching day log for user ${userId} on ${date}`);
+    const logsRef = collection(firebaseDb, LOGS_COLLECTION);
+    const q = query(
+      logsRef,
+      where('userId', '==', userId),
+      where('date', '==', date)
+    );
 
-  const querySnapshot = await getDocs(q);
-  if (querySnapshot.empty) return null;
+    const querySnapshot = await getDocs(q);
+    if (querySnapshot.empty) {
+      console.log(`[DB] No day log found for user ${userId} on ${date}`);
+      return null;
+    }
 
-  const doc_snapshot = querySnapshot.docs[0];
-  return { id: doc_snapshot.id, ...doc_snapshot.data() } as unknown as DayLog;
+    const doc_snapshot = querySnapshot.docs[0];
+    const data = { id: doc_snapshot.id, ...doc_snapshot.data() } as unknown as DayLog;
+    console.log(`[DB] Day log found for user ${userId} on ${date}:`, data);
+    return data;
+  } catch (error) {
+    console.error(`[DB] Error fetching day log for user ${userId} on ${date}:`, error);
+    throw error;
+  }
 }
 
 export async function deleteDayLog(userId: string, date: string): Promise<void> {
@@ -145,19 +171,27 @@ export async function saveCustomFood(userId: string, food: Food): Promise<string
 }
 
 export async function getCustomFoods(userId: string): Promise<Food[]> {
-  const foodsRef = collection(firebaseDb, FOODS_COLLECTION);
-  const q = query(
-    foodsRef,
-    where('userId', '==', userId),
-    where('isCustom', '==', true),
-    orderBy('createdAt', 'desc')
-  );
+  try {
+    console.log(`[DB] Fetching custom foods for user ${userId}`);
+    const foodsRef = collection(firebaseDb, FOODS_COLLECTION);
+    const q = query(
+      foodsRef,
+      where('userId', '==', userId),
+      where('isCustom', '==', true),
+      orderBy('createdAt', 'desc')
+    );
 
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  } as Food));
+    const querySnapshot = await getDocs(q);
+    const foods = querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    } as Food));
+    console.log(`[DB] Found ${foods.length} custom foods for user ${userId}`);
+    return foods;
+  } catch (error) {
+    console.error(`[DB] Error fetching custom foods for user ${userId}:`, error);
+    throw error;
+  }
 }
 
 export async function deleteCustomFood(foodId: string): Promise<void> {

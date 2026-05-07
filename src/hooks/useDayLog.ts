@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { DayLog, MealType, FoodItem, MealEntry, NutrientInfo, NutrientGoals } from '../types';
-import { auth, initializeAuth, getSettings, saveSettings, db as firestoreDb } from '../services/firebaseService';
-import { doc, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { auth, initializeAuth } from '../services/firebaseService';
+import { saveDayLog, getDayLog, getSettings, saveSettings } from '../services/db';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -41,14 +41,15 @@ function computeTotals(meals: Record<MealType, MealEntry[]>): NutrientInfo {
 }
 
 async function getUserId(): Promise<string> {
-  if (auth.currentUser) return auth.currentUser.uid;
+  if (auth.currentUser) {
+    console.log(`[useDayLog] Using cached user: ${auth.currentUser.uid}`);
+    return auth.currentUser.uid;
+  }
+  console.log('[useDayLog] No cached user, initializing auth...');
   const user = await initializeAuth();
   if (!user) throw new Error('Unable to authenticate with Firebase');
+  console.log(`[useDayLog] Auth initialized, user: ${user.uid}`);
   return user.uid;
-}
-
-function dayLogDocRef(userId: string, date: string) {
-  return doc(firestoreDb, 'dayLogs', `${userId}_${date}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -63,10 +64,10 @@ export function useDayLog(date: string) {
     setIsLoading(true);
     try {
       const userId = await getUserId();
-      const docSnap = await getDoc(dayLogDocRef(userId, date));
+      const daylog = await getDayLog(userId, date);
 
-      if (docSnap.exists()) {
-        setDayLog(docSnap.data() as DayLog);
+      if (daylog) {
+        setDayLog(daylog);
       } else {
         const settings = await getSettings(userId);
         const goals: NutrientGoals = settings?.goals ?? DEFAULT_GOALS;
@@ -80,6 +81,7 @@ export function useDayLog(date: string) {
       }
     } catch (error) {
       console.error('Erro ao carregar log do dia:', error);
+      setDayLog(null);
     } finally {
       setIsLoading(false);
     }
@@ -90,96 +92,110 @@ export function useDayLog(date: string) {
   }, [refreshLog]);
 
   const addFood = async (meal: MealType, food: FoodItem, servings: number) => {
-    const nutrients: NutrientInfo = {
-      calories:     Math.round(food.nutrients.calories * servings),
-      protein:      Number((food.nutrients.protein * servings).toFixed(1)),
-      carbs:        Number((food.nutrients.carbs * servings).toFixed(1)),
-      sugar:        Number((food.nutrients.sugar * servings).toFixed(1)),
-      fat:          Number((food.nutrients.fat * servings).toFixed(1)),
-      saturatedFat: Number((food.nutrients.saturatedFat * servings).toFixed(1)),
-      fiber:        Number((food.nutrients.fiber * servings).toFixed(1)),
-      sodium:       Math.round(food.nutrients.sodium * servings),
-    };
+    try {
+      const nutrients: NutrientInfo = {
+        calories:     Math.round(food.nutrients.calories * servings),
+        protein:      Number((food.nutrients.protein * servings).toFixed(1)),
+        carbs:        Number((food.nutrients.carbs * servings).toFixed(1)),
+        sugar:        Number((food.nutrients.sugar * servings).toFixed(1)),
+        fat:          Number((food.nutrients.fat * servings).toFixed(1)),
+        saturatedFat: Number((food.nutrients.saturatedFat * servings).toFixed(1)),
+        fiber:        Number((food.nutrients.fiber * servings).toFixed(1)),
+        sodium:       Math.round(food.nutrients.sodium * servings),
+      };
 
-    const entry: MealEntry = {
-      id: crypto.randomUUID(),
-      foodId: food.id,
-      foodName: food.name,
-      servingsConsumed: servings,
-      nutrients,
-      addedAt: new Date().toISOString(),
-    };
+      const entry: MealEntry = {
+        id: crypto.randomUUID(),
+        foodId: food.id,
+        foodName: food.name,
+        servingsConsumed: servings,
+        nutrients,
+        addedAt: new Date().toISOString(),
+      };
 
-    const userId = await getUserId();
-    const ref = dayLogDocRef(userId, date);
-    const snap = await getDoc(ref);
+      if (!dayLog) return;
 
-    if (snap.exists()) {
-      const current = snap.data() as DayLog;
+      const userId = await getUserId();
       const updatedMeals = {
-        ...current.meals,
-        [meal]: [...current.meals[meal], entry],
+        ...dayLog.meals,
+        [meal]: [...dayLog.meals[meal], entry],
       };
-      await updateDoc(ref, { meals: updatedMeals, totals: computeTotals(updatedMeals) });
-    } else {
-      const settings = await getSettings(userId);
-      const goals: NutrientGoals = settings?.goals ?? DEFAULT_GOALS;
-      const meals: Record<MealType, MealEntry[]> = {
-        breakfast: [], lunch: [], dinner: [], snack: [],
-        [meal]: [entry],
+      const updatedLog: DayLog = { 
+        ...dayLog, 
+        meals: updatedMeals, 
+        totals: computeTotals(updatedMeals) 
       };
-      await setDoc(ref, { date, meals, totals: computeTotals(meals), goals });
+      
+      await saveDayLog(userId, updatedLog);
+      await refreshLog();
+    } catch (error) {
+      console.error('Erro ao adicionar alimento:', error);
+      throw error;
     }
-
-    await refreshLog();
   };
 
   const removeEntry = async (meal: MealType, entryId: string) => {
-    const userId = await getUserId();
-    const ref = dayLogDocRef(userId, date);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
+    try {
+      if (!dayLog) return;
 
-    const current = snap.data() as DayLog;
-    const updatedMeals = {
-      ...current.meals,
-      [meal]: current.meals[meal].filter(e => e.id !== entryId),
-    };
-    await updateDoc(ref, { meals: updatedMeals, totals: computeTotals(updatedMeals) });
-    await refreshLog();
+      const userId = await getUserId();
+      const updatedMeals = {
+        ...dayLog.meals,
+        [meal]: dayLog.meals[meal].filter(e => e.id !== entryId),
+      };
+      const updatedLog: DayLog = {
+        ...dayLog,
+        meals: updatedMeals,
+        totals: computeTotals(updatedMeals)
+      };
+      
+      await saveDayLog(userId, updatedLog);
+      await refreshLog();
+    } catch (error) {
+      console.error('Erro ao remover alimento:', error);
+      throw error;
+    }
   };
 
   const updateEntry = async (meal: MealType, entryId: string, servings: number) => {
-    const userId = await getUserId();
-    const ref = dayLogDocRef(userId, date);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return;
+    try {
+      if (!dayLog) return;
 
-    const current = snap.data() as DayLog;
-    const updatedMeals = {
-      ...current.meals,
-      [meal]: current.meals[meal].map(e => {
-        if (e.id !== entryId) return e;
-        const ratio = servings / e.servingsConsumed;
-        const n = e.nutrients;
-        return {
-          ...e,
-          servingsConsumed: servings,
-          nutrients: {
-            calories:     Math.round(n.calories * ratio),
-            protein:      Number((n.protein * ratio).toFixed(1)),
-            carbs:        Number((n.carbs * ratio).toFixed(1)),
-            sugar:        Number((n.sugar * ratio).toFixed(1)),
-            fat:          Number((n.fat * ratio).toFixed(1)),
-            saturatedFat: Number((n.saturatedFat * ratio).toFixed(1)),
-            fiber:        Number((n.fiber * ratio).toFixed(1)),
-            sodium:       Math.round(n.sodium * ratio),
-          },
-        };
-      }),
-    };
-    await updateDoc(ref, { meals: updatedMeals, totals: computeTotals(updatedMeals) });
-    await refreshLog();
+      const userId = await getUserId();
+      const updatedMeals = {
+        ...dayLog.meals,
+        [meal]: dayLog.meals[meal].map(e => {
+          if (e.id !== entryId) return e;
+          const ratio = servings / e.servingsConsumed;
+          const n = e.nutrients;
+          return {
+            ...e,
+            servingsConsumed: servings,
+            nutrients: {
+              calories:     Math.round(n.calories * ratio),
+              protein:      Number((n.protein * ratio).toFixed(1)),
+              carbs:        Number((n.carbs * ratio).toFixed(1)),
+              sugar:        Number((n.sugar * ratio).toFixed(1)),
+              fat:          Number((n.fat * ratio).toFixed(1)),
+              saturatedFat: Number((n.saturatedFat * ratio).toFixed(1)),
+              fiber:        Number((n.fiber * ratio).toFixed(1)),
+              sodium:       Math.round(n.sodium * ratio),
+            },
+          };
+        }),
+      };
+      const updatedLog: DayLog = {
+        ...dayLog,
+        meals: updatedMeals,
+        totals: computeTotals(updatedMeals)
+      };
+      
+      await saveDayLog(userId, updatedLog);
+      await refreshLog();
+    } catch (error) {
+      console.error('Erro ao atualizar alimento:', error);
+      throw error;
+    }
   };
 
   const totals = useMemo(() => dayLog?.totals ?? emptyTotals(), [dayLog]);

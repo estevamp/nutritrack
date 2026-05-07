@@ -8,9 +8,14 @@ import { commonFoods } from '../data/commonFoods';
 const FOODS_COLLECTION = 'foods';
 
 async function getUserId(): Promise<string> {
-  if (auth.currentUser) return auth.currentUser.uid;
+  if (auth.currentUser) {
+    console.log(`[useFoodDatabase] Using cached user: ${auth.currentUser.uid}`);
+    return auth.currentUser.uid;
+  }
+  console.log('[useFoodDatabase] No cached user, initializing auth...');
   const user = await initializeAuth();
   if (!user) throw new Error('Unable to authenticate with Firebase');
+  console.log(`[useFoodDatabase] Auth initialized, user: ${user.uid}`);
   return user.uid;
 }
 
@@ -52,13 +57,15 @@ export function useFoodDatabase() {
     setIsLoading(true);
     try {
       const userId = await getUserId();
+      console.log(`[useFoodDatabase] Loading custom foods for user ${userId}`);
       const customFoods = await getCustomFoods(userId);
       
       // Combine common foods with custom foods
       const allFoods = [...commonFoods, ...customFoods];
+      console.log(`[useFoodDatabase] Loaded ${allFoods.length} foods (${commonFoods.length} common + ${customFoods.length} custom)`);
       setFoods(allFoods);
     } catch (error) {
-      console.error('Erro ao carregar banco de alimentos:', error);
+      console.error('[useFoodDatabase] Erro ao carregar banco de alimentos:', error);
     } finally {
       setIsLoading(false);
     }

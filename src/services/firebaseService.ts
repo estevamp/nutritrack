@@ -24,12 +24,15 @@ export const storage: FirebaseStorage = getStorage(app);
 export const initializeAuth = async (): Promise<User | null> => {
   try {
     if (auth.currentUser) {
+      console.log(`[Firebase] User already authenticated: ${auth.currentUser.uid}`);
       return auth.currentUser;
     }
+    console.log('[Firebase] Signing in anonymously...');
     const result = await signInAnonymously(auth);
+    console.log(`[Firebase] Anonymous user created: ${result.user.uid}`);
     return result.user;
   } catch (error) {
-    console.error("Error initializing auth:", error);
+    console.error("[Firebase] Error initializing auth:", error);
     return null;
   }
 };
