@@ -87,6 +87,13 @@ export function initializeFirebase(): Firestore {
 }
 
 /**
+ * Retorna a instância do Firestore
+ */
+export function getFirestoreInstance(): Firestore {
+  return initializeFirebase();
+}
+
+/**
  * Garante que o usuário está autenticado antes de operações de escrita
  */
 function ensureAuthenticated(): Promise<User> {
@@ -469,7 +476,13 @@ export async function getSettingsFromFirestore(): Promise<UserSettings | null> {
   const snapshot = await getDoc(settingsRef);
   
   if (snapshot.exists()) {
-    return { id: snapshot.id, ...snapshot.data() } as UserSettings;
+    const data = snapshot.data();
+    return {
+      id: snapshot.id,
+      ...data,
+      goals: data!.goals as UserSettings['goals'],
+      name: data!.name as string
+    } as UserSettings;
   }
   
   return null;
@@ -559,7 +572,7 @@ export async function importDataToFirestore(jsonString: string): Promise<void> {
  * Escuta mudanças em tempo real nos registros diários
  */
 export function subscribeToDayLogs(
-  callback: (logs: DayLog[]) => void
+  _callback: (logs: DayLog[]) => void
 ): () => void {
   const db = initializeFirebase();
   const logsRef = collection(db, DAYLOGS_COLLECTION);

@@ -7,7 +7,7 @@ dist/
 build/
 *.js.map
 
-# Environment
+# Environment variables
 .env
 .env.local
 *.env.*
@@ -15,67 +15,157 @@ build/
 # Editors
 .vscode/
 .idea/
-*.swp
-*.swo
 
 # Logs
 *.log
 
-# Temp files
-*.tmp
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Python cache (if present)
+# Python (if applicable)
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Compiled Binary files
-*.o
-*.obj
-*.out
-*.class
-*.dll
-*.so
-*.a
-*.exe
+# Temporary files
+*.tmp
+*.swp
+*.swo
 
-# Compressed files
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-
-# System files
+# OS generated files
 .DS_Store
 Thumbs.db
 
-# Testing
-*.pytest_cache/
+# Coverage reports
+coverage/
+htmlcov/
+*.coverage
+
+# MyPy cache
 .mypy_cache/
-.nyc_output/
+
+# Pytest cache
+.pytest_cache/
+
+# Distribution / packaging
+.Python
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+nosetests.xml
+
+# Translations
+*.mo
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+# Rope
+.ropeproject
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# IDE
+.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Firebase / TypeScript specific
+firebase-debug.log*
+*.tsbuildinfo
+
+# General build outputs
+*.min.js
+*.min.css
+bundle.js
+bundle.css
+
+# Package manager caches
+.npm/
+.yarn/
+.pnpm-store/
+
+# Testing
 coverage.xml
+*.gcov
+*.lcov
+
+# Database
+*.db
+*.db-journal
+
+# Lock files
+package-lock.json
+yarn.lock
 ```
