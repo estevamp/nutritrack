@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { type FoodItem } from '../types';
 import { auth, initializeAuth } from '../services/firebaseService';
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc, updateDoc, Timestamp } from 'firebase/firestore';
-import { db as firestoreDb } from '../services/firebase';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc, Timestamp } from 'firebase/firestore';
+import { db } from '../services/firebaseService';
 import { commonFoods } from '../data/commonFoods';
 
 const FOODS_COLLECTION = 'foods';
@@ -20,7 +20,7 @@ async function getUserId(): Promise<string> {
 }
 
 async function getCustomFoods(userId: string): Promise<FoodItem[]> {
-  const foodsRef = collection(firestoreDb, FOODS_COLLECTION);
+  const foodsRef = collection(db, FOODS_COLLECTION);
   const q = query(
     foodsRef,
     where('userId', '==', userId),
@@ -35,7 +35,7 @@ async function getCustomFoods(userId: string): Promise<FoodItem[]> {
 }
 
 async function getAllFoodsIncludingCommon(userId: string): Promise<FoodItem[]> {
-  const foodsRef = collection(firestoreDb, FOODS_COLLECTION);
+  const foodsRef = collection(db, FOODS_COLLECTION);
   const q = query(foodsRef, where('userId', '==', userId));
 
   const querySnapshot = await getDocs(q);
@@ -95,7 +95,7 @@ export function useFoodDatabase() {
   const addCustomFood = async (foodData: Omit<FoodItem, 'id' | 'isCustom'>) => {
     try {
       const userId = await getUserId();
-      const foodsRef = collection(firestoreDb, FOODS_COLLECTION);
+      const foodsRef = collection(db, FOODS_COLLECTION);
       
       await addDoc(foodsRef, {
         ...foodData,
@@ -114,7 +114,7 @@ export function useFoodDatabase() {
   const deleteCustomFood = async (id: string) => {
     try {
       const userId = await getUserId();
-      const foodRef = doc(firestoreDb, FOODS_COLLECTION, id);
+      const foodRef = doc(db, FOODS_COLLECTION, id);
       
       // Verify that the food belongs to the current user and is custom
       const food = foods.find(f => f.id === id);
