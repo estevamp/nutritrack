@@ -12,7 +12,7 @@ import {
   QueryConstraint,
 } from 'firebase/firestore';
 import { db as firebaseDb } from './firebase';
-import { DayLog, Food } from '../types';
+import type { DayLog, Food } from '../types';
 
 // Collection references
 const LOGS_COLLECTION = 'dayLogs';

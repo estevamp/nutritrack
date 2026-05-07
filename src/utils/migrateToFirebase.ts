@@ -49,27 +49,27 @@ async function getAllDataFromIndexedDB(): Promise<{
 
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
-      const db = request.result;
+      const database = request.result;
       const foods: Food[] = [];
       const meals: Meal[] = [];
       const dayLogs: DayLog[] = [];
 
       // Ler alimentos
-      const foodStore = db.transaction('foods', 'readonly').objectStore('foods');
+      const foodStore = database.transaction('foods', 'readonly').objectStore('foods');
       const foodRequest = foodStore.getAll();
 
       foodRequest.onsuccess = () => {
         foods.push(...foodRequest.result);
 
         // Ler refeições
-        const mealStore = db.transaction('meals', 'readonly').objectStore('meals');
+        const mealStore = database.transaction('meals', 'readonly').objectStore('meals');
         const mealRequest = mealStore.getAll();
 
         mealRequest.onsuccess = () => {
           meals.push(...mealRequest.result);
 
           // Ler logs diários
-          const logStore = db.transaction('dayLogs', 'readonly').objectStore('dayLogs');
+          const logStore = database.transaction('dayLogs', 'readonly').objectStore('dayLogs');
           const logRequest = logStore.getAll();
 
           logRequest.onsuccess = () => {
@@ -98,9 +98,9 @@ async function importFoodsToFirebase(foods: Food[]): Promise<void> {
   }
 
   try {
-    const db = db;
-    const batch = writeBatch(db);
-    const foodsRef = collection(db, 'foods');
+    const firestoreDb = db;
+    const batch = writeBatch(firestoreDb);
+    const foodsRef = collection(firestoreDb, 'foods');
 
     foods.forEach((food) => {
       const docRef = doc(foodsRef);
@@ -129,9 +129,9 @@ async function importMealsToFirebase(meals: Meal[]): Promise<void> {
   }
 
   try {
-    const db = db;
-    const batch = writeBatch(db);
-    const mealsRef = collection(db, 'meals');
+    const firestoreDb = db;
+    const batch = writeBatch(firestoreDb);
+    const mealsRef = collection(firestoreDb, 'meals');
 
     meals.forEach((meal) => {
       const docRef = doc(mealsRef);
@@ -160,9 +160,9 @@ async function importDayLogsToFirebase(dayLogs: DayLog[]): Promise<void> {
   }
 
   try {
-    const db = db;
-    const batch = writeBatch(db);
-    const logsRef = collection(db, 'dayLogs');
+    const firestoreDb = db;
+    const batch = writeBatch(firestoreDb);
+    const logsRef = collection(firestoreDb, 'dayLogs');
 
     dayLogs.forEach((log) => {
       const docRef = doc(logsRef);
@@ -240,10 +240,10 @@ export async function checkFirebaseData(): Promise<{
   logsCount: number;
 }> {
   try {
-    const db = db;
-    const foodsSnapshot = await getDocs(collection(db, 'foods'));
-    const mealsSnapshot = await getDocs(collection(db, 'meals'));
-    const logsSnapshot = await getDocs(collection(db, 'dayLogs'));
+    const firestoreDb = db;
+    const foodsSnapshot = await getDocs(collection(firestoreDb, 'foods'));
+    const mealsSnapshot = await getDocs(collection(firestoreDb, 'meals'));
+    const logsSnapshot = await getDocs(collection(firestoreDb, 'dayLogs'));
 
     return {
       foodsCount: foodsSnapshot.size,
@@ -266,13 +266,13 @@ export async function checkFirebaseData(): Promise<{
 export async function clearFirebaseData(): Promise<void> {
   try {
     console.log('⚠️ Limpando dados do Firebase...');
-    const db = db;
+    const firestoreDb = db;
 
     const collections = ['foods', 'meals', 'dayLogs'];
 
     for (const collectionName of collections) {
-      const snapshot = await getDocs(collection(db, collectionName));
-      const batch = writeBatch(db);
+      const snapshot = await getDocs(collection(firestoreDb, collectionName));
+      const batch = writeBatch(firestoreDb);
 
       snapshot.docs.forEach((doc) => {
         batch.delete(doc.ref);

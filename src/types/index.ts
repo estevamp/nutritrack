@@ -21,6 +21,9 @@ export interface FoodItem {
   isCustom: boolean;      // true se foi criado pelo usuário
 }
 
+// Alias for backwards compatibility
+export type Food = FoodItem;
+
 export interface MealEntry {
   id: string;
   foodId: string;
