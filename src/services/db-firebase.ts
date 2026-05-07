@@ -85,7 +85,7 @@ export async function getDayLogs(
     return querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-    } as DayLog));
+    } as unknown as DayLog));
   } catch (error) {
     console.error('Error getting day logs:', error);
     throw error;
@@ -114,7 +114,7 @@ export async function getDayLog(userId: string, date: string): Promise<DayLog | 
     return {
       id: doc.id,
       ...doc.data(),
-    } as DayLog;
+    } as unknown as DayLog;
   } catch (error) {
     console.error('Error getting day log:', error);
     throw error;

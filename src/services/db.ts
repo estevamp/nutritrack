@@ -65,7 +65,7 @@ export async function getDayLogs(
   return querySnapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
-  } as DayLog));
+  } as unknown as DayLog));
 }
 
 export async function getDayLog(userId: string, date: string): Promise<DayLog | null> {
@@ -80,7 +80,7 @@ export async function getDayLog(userId: string, date: string): Promise<DayLog | 
   if (querySnapshot.empty) return null;
 
   const doc = querySnapshot.docs[0];
-  return { id: doc.id, ...doc.data() } as DayLog;
+  return { id: doc.id, ...doc.data() } as unknown as DayLog;
 }
 
 export async function deleteDayLog(userId: string, date: string): Promise<void> {
@@ -171,18 +171,19 @@ export async function deleteFood(id: string): Promise<void> {
 export async function getAllDayLogs(): Promise<DayLog[]> {
   const logsRef = collection(firebaseDb, LOGS_COLLECTION);
   const snapshot = await getDocs(logsRef);
-  return snapshot.docs.map(doc => ({ date: doc.id, ...doc.data() } as DayLog));
+  return snapshot.docs.map(doc => ({ date: doc.id, ...doc.data() } as unknown as DayLog));
 }
 
-export async function getRecentLogs(days: number): Promise<DayLog[]> {
+export async function getRecentLogs(userId: string, days: number): Promise<DayLog[]> {
   const logsRef = collection(firebaseDb, LOGS_COLLECTION);
   const q = query(
     logsRef,
+    where('userId', '==', userId),
     orderBy('date', 'desc'),
     limit(days)
   );
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ date: doc.id, ...doc.data() } as DayLog));
+  return snapshot.docs.map(doc => ({ date: doc.id, ...doc.data() } as unknown as DayLog));
 }
 
 // ==================== Settings Functions ====================
