@@ -1,4 +1,4 @@
-import { getFirestoreInstance } from '../services/firebase';
+import { db } from '../services/firebase';
 import { collection, writeBatch, doc, setDoc, query, where, getDocs } from 'firebase/firestore';
 
 /**
@@ -98,7 +98,7 @@ async function importFoodsToFirebase(foods: Food[]): Promise<void> {
   }
 
   try {
-    const db = getFirestoreInstance();
+    const db = db;
     const batch = writeBatch(db);
     const foodsRef = collection(db, 'foods');
 
@@ -129,7 +129,7 @@ async function importMealsToFirebase(meals: Meal[]): Promise<void> {
   }
 
   try {
-    const db = getFirestoreInstance();
+    const db = db;
     const batch = writeBatch(db);
     const mealsRef = collection(db, 'meals');
 
@@ -160,7 +160,7 @@ async function importDayLogsToFirebase(dayLogs: DayLog[]): Promise<void> {
   }
 
   try {
-    const db = getFirestoreInstance();
+    const db = db;
     const batch = writeBatch(db);
     const logsRef = collection(db, 'dayLogs');
 
@@ -240,7 +240,7 @@ export async function checkFirebaseData(): Promise<{
   logsCount: number;
 }> {
   try {
-    const db = getFirestoreInstance();
+    const db = db;
     const foodsSnapshot = await getDocs(collection(db, 'foods'));
     const mealsSnapshot = await getDocs(collection(db, 'meals'));
     const logsSnapshot = await getDocs(collection(db, 'dayLogs'));
@@ -266,7 +266,7 @@ export async function checkFirebaseData(): Promise<{
 export async function clearFirebaseData(): Promise<void> {
   try {
     console.log('⚠️ Limpando dados do Firebase...');
-    const db = getFirestoreInstance();
+    const db = db;
 
     const collections = ['foods', 'meals', 'dayLogs'];
 
