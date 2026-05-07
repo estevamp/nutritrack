@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useGoals } from '../hooks/useDayLog';
-import { getSettings, saveSettings, exportAllData, importData } from '../services/db';
+import { getSettings, saveSettings } from '../services/db';
+import { exportAllDataFromFirestore, importDataToFirestore } from '../services/firebase';
 import { Download, Upload, Trash2, Save, User, FolderSync, Link as LinkIcon, Unlink, Database } from 'lucide-react';
+import { auth } from '../services/firebaseService';
 
 const SettingsPage: React.FC = () => {
   const { goals, saveGoals, isLoading: goalsLoading } = useGoals();
@@ -11,7 +13,8 @@ const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     const loadSettings = async () => {
-      const settings = await getSettings();
+      if (!auth.currentUser) return;
+      const settings = await getSettings(auth.currentUser.uid);
       if (settings) {
         setUserName(settings.name);
         setLocalGoals(settings.goals);
@@ -22,14 +25,16 @@ const SettingsPage: React.FC = () => {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await saveSettings({ name: userName, goals: localGoals });
-    await saveGoals(localGoals);
+    if (auth.currentUser) {
+      await saveSettings(auth.currentUser.uid, { name: userName, goals: localGoals });
+      await saveGoals(localGoals);
+    }
     setIsSaving(false);
     alert('Configurações salvas com sucesso!');
   };
 
   const handleExport = async () => {
-    const data = await exportAllData();
+    const data = await exportAllDataFromFirestore();
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -47,7 +52,7 @@ const SettingsPage: React.FC = () => {
     reader.onload = async (event) => {
       try {
         const json = event.target?.result as string;
-        await importData(json);
+        await importDataToFirestore(json);
         alert('Dados importados com sucesso! O app será recarregado.');
         window.location.reload();
       } catch (err) {
@@ -59,9 +64,9 @@ const SettingsPage: React.FC = () => {
 
   const handleClearData = async () => {
     if (confirm('TEM CERTEZA? Isso apagará todos os seus registros e alimentos personalizados permanentemente.')) {
-      indexedDB.deleteDatabase('nutrition-tracker-db');
-      alert('Todos os dados foram apagados. O app será reiniciado.');
-      window.location.reload();
+      // Note: Clearing all data requires backend support or manual deletion
+      // For now, users should delete their account through Firebase console
+      alert('Para apagar todos os dados, acesse as configurações da sua conta Firebase.');
     }
   };
 

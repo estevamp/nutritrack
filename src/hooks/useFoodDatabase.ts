@@ -1,7 +1,48 @@
 import { useState, useEffect, useCallback } from 'react';
 import { type FoodItem } from '../types';
-import * as db from '../services/db';
+import { auth, initializeAuth } from '../services/firebaseService';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { db as firestoreDb } from '../services/firebase';
 import { commonFoods } from '../data/commonFoods';
+
+const FOODS_COLLECTION = 'foods';
+
+async function getUserId(): Promise<string> {
+  if (auth.currentUser) return auth.currentUser.uid;
+  const user = await initializeAuth();
+  if (!user) throw new Error('Unable to authenticate with Firebase');
+  return user.uid;
+}
+
+async function getCustomFoods(userId: string): Promise<FoodItem[]> {
+  const foodsRef = collection(firestoreDb, FOODS_COLLECTION);
+  const q = query(
+    foodsRef,
+    where('userId', '==', userId),
+    where('isCustom', '==', true)
+  );
+
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  } as unknown as FoodItem));
+}
+
+async function getAllFoodsIncludingCommon(userId: string): Promise<FoodItem[]> {
+  const foodsRef = collection(firestoreDb, FOODS_COLLECTION);
+  const q = query(foodsRef, where('userId', '==', userId));
+
+  const querySnapshot = await getDocs(q);
+  const customFoods = querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  } as unknown as FoodItem));
+
+  // Add common foods that are not custom
+  const allFoods = [...commonFoods, ...customFoods];
+  return allFoods;
+}
 
 export function useFoodDatabase() {
   const [foods, setFoods] = useState<FoodItem[]>([]);
@@ -10,18 +51,12 @@ export function useFoodDatabase() {
   const refreshFoods = useCallback(async () => {
     setIsLoading(true);
     try {
-      const allFoods = await db.getAllFoods();
+      const userId = await getUserId();
+      const customFoods = await getCustomFoods(userId);
       
-      // Se o banco estiver vazio, popula com os alimentos comuns
-      if (allFoods.length === 0) {
-        for (const food of commonFoods) {
-          await db.saveFood(food);
-        }
-        const populatedFoods = await db.getAllFoods();
-        setFoods(populatedFoods);
-      } else {
-        setFoods(allFoods);
-      }
+      // Combine common foods with custom foods
+      const allFoods = [...commonFoods, ...customFoods];
+      setFoods(allFoods);
     } catch (error) {
       console.error('Erro ao carregar banco de alimentos:', error);
     } finally {
@@ -51,22 +86,41 @@ export function useFoodDatabase() {
   }, [foods]);
 
   const addCustomFood = async (foodData: Omit<FoodItem, 'id' | 'isCustom'>) => {
-    const newFood: FoodItem = {
-      ...foodData,
-      id: crypto.randomUUID(),
-      isCustom: true
-    };
-    await db.saveFood(newFood);
-    await refreshFoods();
+    try {
+      const userId = await getUserId();
+      const foodsRef = collection(firestoreDb, FOODS_COLLECTION);
+      
+      await addDoc(foodsRef, {
+        ...foodData,
+        userId,
+        isCustom: true,
+        createdAt: Timestamp.now(),
+      });
+      
+      await refreshFoods();
+    } catch (error) {
+      console.error('Erro ao adicionar alimento customizado:', error);
+      throw error;
+    }
   };
 
   const deleteCustomFood = async (id: string) => {
-    const food = await db.getFoodById(id);
-    if (food?.isCustom) {
-      await db.deleteFood(id);
+    try {
+      const userId = await getUserId();
+      const foodRef = doc(firestoreDb, FOODS_COLLECTION, id);
+      
+      // Verify that the food belongs to the current user and is custom
+      const food = foods.find(f => f.id === id);
+      if (!food?.isCustom) {
+        console.warn('Não é possível deletar alimentos padrão do sistema.');
+        return;
+      }
+      
+      await deleteDoc(foodRef);
       await refreshFoods();
-    } else {
-      console.warn('Não é possível deletar alimentos padrão do sistema.');
+    } catch (error) {
+      console.error('Erro ao deletar alimento:', error);
+      throw error;
     }
   };
 

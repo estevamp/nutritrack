@@ -1,4 +1,10 @@
-import { getDoc, setDoc, doc } from 'firebase/firestore';
+/**
+ * db.ts - Firebase Database Service
+ * 
+ * This module provides all database operations for NutriTrack.
+ * All data is stored in Firebase Firestore. No local storage is used.
+ */
+
 import {
   collection,
   addDoc,
@@ -7,17 +13,33 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  doc,
+  getDoc,
+  setDoc,
   Timestamp,
   orderBy,
   QueryConstraint,
   limit,
 } from 'firebase/firestore';
 import { db as firebaseDb } from './firebase';
+import { auth, initializeAuth } from './firebaseService';
 import type { DayLog, Food } from '../types';
 
 const LOGS_COLLECTION = 'dayLogs';
 const FOODS_COLLECTION = 'foods';
 const SETTINGS_COLLECTION = 'settings';
+
+/**
+ * Get current user ID from Firebase Auth
+ */
+async function getCurrentUserId(): Promise<string> {
+  if (auth.currentUser) return auth.currentUser.uid;
+  const user = await initializeAuth();
+  if (!user) throw new Error('Unable to authenticate with Firebase');
+  return user.uid;
+}
+
+// ==================== Day Log Functions ====================
 
 export async function saveDayLog(userId: string, dayLog: DayLog): Promise<string> {
   const logsRef = collection(firebaseDb, LOGS_COLLECTION);
@@ -79,8 +101,8 @@ export async function getDayLog(userId: string, date: string): Promise<DayLog | 
   const querySnapshot = await getDocs(q);
   if (querySnapshot.empty) return null;
 
-  const doc = querySnapshot.docs[0];
-  return { id: doc.id, ...doc.data() } as unknown as DayLog;
+  const doc_snapshot = querySnapshot.docs[0];
+  return { id: doc_snapshot.id, ...doc_snapshot.data() } as unknown as DayLog;
 }
 
 export async function deleteDayLog(userId: string, date: string): Promise<void> {
@@ -92,10 +114,24 @@ export async function deleteDayLog(userId: string, date: string): Promise<void> 
   );
 
   const querySnapshot = await getDocs(q);
-  for (const doc of querySnapshot.docs) {
-    await deleteDoc(doc.ref);
+  for (const doc_ref of querySnapshot.docs) {
+    await deleteDoc(doc_ref.ref);
   }
 }
+
+export async function getRecentLogs(userId: string, days: number): Promise<DayLog[]> {
+  const logsRef = collection(firebaseDb, LOGS_COLLECTION);
+  const q = query(
+    logsRef,
+    where('userId', '==', userId),
+    orderBy('date', 'desc'),
+    limit(days)
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as unknown as DayLog));
+}
+
+// ==================== Food Functions ====================
 
 export async function saveCustomFood(userId: string, food: Food): Promise<string> {
   const foodsRef = collection(firebaseDb, FOODS_COLLECTION);
@@ -135,61 +171,10 @@ export async function updateCustomFood(foodId: string, food: Partial<Food>): Pro
   });
 }
 
-// ==================== Food Functions (for backwards compatibility) ====================
-
-export async function getAllFoods(): Promise<Food[]> {
-  const foodsRef = collection(firebaseDb, FOODS_COLLECTION);
-  const snapshot = await getDocs(foodsRef);
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Food));
-}
-
-export async function saveFood(food: Food): Promise<string> {
-  const foodsRef = collection(firebaseDb, FOODS_COLLECTION);
-  const docRef = await addDoc(foodsRef, {
-    ...food,
-    isCustom: true,
-    createdAt: Timestamp.now(),
-  });
-  return docRef.id;
-}
-
-export async function getFoodById(id: string): Promise<Food | null> {
-  const foodRef = doc(firebaseDb, FOODS_COLLECTION, id);
-  const snapshot = await getDoc(foodRef);
-  if (snapshot.exists()) {
-    return { id: snapshot.id, ...snapshot.data() } as Food;
-  }
-  return null;
-}
-
-export async function deleteFood(id: string): Promise<void> {
-  await deleteDoc(doc(firebaseDb, FOODS_COLLECTION, id));
-}
-
-// ==================== DayLog Functions (for backwards compatibility) ====================
-
-export async function getAllDayLogs(): Promise<DayLog[]> {
-  const logsRef = collection(firebaseDb, LOGS_COLLECTION);
-  const snapshot = await getDocs(logsRef);
-  return snapshot.docs.map(doc => ({ date: doc.id, ...doc.data() } as unknown as DayLog));
-}
-
-export async function getRecentLogs(userId: string, days: number): Promise<DayLog[]> {
-  const logsRef = collection(firebaseDb, LOGS_COLLECTION);
-  const q = query(
-    logsRef,
-    where('userId', '==', userId),
-    orderBy('date', 'desc'),
-    limit(days)
-  );
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({ date: doc.id, ...doc.data() } as unknown as DayLog));
-}
-
 // ==================== Settings Functions ====================
 
-export async function getSettings(): Promise<{ name: string; goals: any } | null> {
-  const settingsRef = doc(firebaseDb, SETTINGS_COLLECTION, 'user-settings');
+export async function getSettings(userId: string): Promise<{ name: string; goals: any } | null> {
+  const settingsRef = doc(firebaseDb, SETTINGS_COLLECTION, userId);
   const snapshot = await getDoc(settingsRef);
   if (snapshot.exists()) {
     return snapshot.data() as { name: string; goals: any };
@@ -197,45 +182,8 @@ export async function getSettings(): Promise<{ name: string; goals: any } | null
   return null;
 }
 
-export async function saveSettings(settings: { name: string; goals: any }): Promise<void> {
-  const settingsRef = doc(firebaseDb, SETTINGS_COLLECTION, 'user-settings');
+export async function saveSettings(userId: string, settings: { name: string; goals: any }): Promise<void> {
+  const settingsRef = doc(firebaseDb, SETTINGS_COLLECTION, userId);
   await setDoc(settingsRef, settings, { merge: true });
 }
 
-// ==================== Export/Import Data ====================
-
-export async function exportAllData(): Promise<string> {
-  const foods = await getAllFoods();
-  const dayLogs = await getAllDayLogs();
-  const settings = await getSettings();
-  
-  return JSON.stringify({
-    foods,
-    dayLogs,
-    settings,
-    exportedAt: new Date().toISOString()
-  }, null, 2);
-}
-
-export async function importData(jsonString: string): Promise<void> {
-  const data = JSON.parse(jsonString);
-  
-  // Import foods
-  if (data.foods) {
-    for (const food of data.foods) {
-      await saveFood(food);
-    }
-  }
-  
-  // Import day logs
-  if (data.dayLogs) {
-    for (const log of data.dayLogs) {
-      await saveDayLog('', log);
-    }
-  }
-  
-  // Import settings
-  if (data.settings) {
-    await saveSettings(data.settings);
-  }
-}

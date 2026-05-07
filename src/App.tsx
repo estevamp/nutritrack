@@ -8,8 +8,6 @@ import UpdatePrompt from './components/UpdatePrompt';
 import { useEffect } from 'react';
 import { initializeAuth } from './services/firebaseService';
 
-import MigrationTool from './components/MigrationTool';
-
 function App() {
     useEffect(() => {
     // Initialize Firebase authentication
@@ -24,8 +22,6 @@ function App() {
           <Route path="history" element={<HistoryPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
-        {/* Rota para ferramenta de migração */}
-        <Route path="/migrate" element={<MigrationTool />} />
       </Routes>
       <UpdatePrompt />
     </BrowserRouter>
