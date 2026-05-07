@@ -13,6 +13,7 @@ const categories = [
   { id: 'fat', label: 'Gorduras' },
   { id: 'beverage', label: 'Bebidas' },
   { id: 'snack', label: 'Lanches' },
+  { id: 'other', label: 'Outros' },
 ];
 
 const FoodsPage: React.FC = () => {

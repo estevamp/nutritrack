@@ -20,6 +20,7 @@ const categories = [
   { id: 'fat', label: 'Gorduras' },
   { id: 'beverage', label: 'Bebidas' },
   { id: 'snack', label: 'Lanches' },
+  { id: 'other', label: 'Outros' },
 ];
 
 const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClose, onSelectFood, editingEntry }) => {
