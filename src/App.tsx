@@ -6,7 +6,7 @@ import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import UpdatePrompt from './components/UpdatePrompt';
 import { useEffect } from 'react';
-import { initializeAuth } from './services/firebaseService';
+import { initializeAuth } from './services/firebase';
 
 function App() {
     useEffect(() => {

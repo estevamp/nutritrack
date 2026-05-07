@@ -2,7 +2,7 @@
  * db.ts - Firebase Database Service (single source of truth)
  *
  * All app data is stored in Firebase Firestore (no local storage).
- * This module uses the already-initialized Firestore instance from firebaseService.ts.
+ * This module uses the already-initialized Firestore instance from firebase.ts.
  */
 
 import {
@@ -22,7 +22,7 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore';
 
-import { db } from './firebaseService';
+import { db } from './firebase';
 import type { DayLog, Food } from '../types';
 
 const LOGS_COLLECTION = 'dayLogs';

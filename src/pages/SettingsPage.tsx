@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useGoals } from '../hooks/useDayLog';
 import { getSettings, saveSettings } from '../services/db';
 import { exportAllDataFromFirestore, importDataToFirestore } from '../services/firebase';
-import { Download, Upload, Trash2, Save, User, FolderSync, Link as LinkIcon, Unlink, Database } from 'lucide-react';
-import { auth } from '../services/firebaseService';
+import { Download, Upload, Trash2, Save, User, Link as LinkIcon, Database } from 'lucide-react';
+import { auth } from '../services/firebase';
 
 const SettingsPage: React.FC = () => {
   const { goals, saveGoals, isLoading: goalsLoading } = useGoals();

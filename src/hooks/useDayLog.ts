@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { DayLog, MealType, FoodItem, MealEntry, NutrientInfo, NutrientGoals } from '../types';
-import { auth, initializeAuth } from '../services/firebaseService';
+import { auth, initializeAuth } from '../services/firebase';
 import { saveDayLog, getDayLog, getSettings, saveSettings } from '../services/db';
 
 // ---------------------------------------------------------------------------

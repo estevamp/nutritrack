@@ -1,27 +1,17 @@
 /**
- * Serviço de Banco de Dados Firebase Firestore
- * 
- * Este arquivo implementa a integração com o Firebase Firestore
- * para substituir ou complementar o banco de dados IndexedDB atual.
- * 
- * PRÉ-REQUISITOS:
- * 1. Instale o Firebase: npm install firebase
- * 2. Crie um projeto no Firebase Console (https://console.firebase.google.com/)
- * 3. Registre um aplicativo web no seu projeto Firebase
- * 4. Copie as credenciais do seu projeto
- * 5. Crie um arquivo .env na raiz do projeto com as seguintes variáveis:
- * 
- * VITE_FIREBASE_API_KEY=sua_api_key
- * VITE_FIREBASE_AUTH_DOMAIN=seu_auth_domain
- * VITE_FIREBASE_PROJECT_ID=seu_project_id
- * VITE_FIREBASE_STORAGE_BUCKET=seu_storage_bucket
- * VITE_FIREBASE_MESSAGING_SENDER_ID=seu_messaging_sender_id
- * VITE_FIREBASE_APP_ID=seu_app_id
+ * Firebase (single source of truth)
+ *
+ * - One Firebase app instance
+ * - Exports: auth, db, initializeAuth
+ * - Firestore model:
+ *   - settings/{uid}
+ *   - foods/{autoId} with userId
+ *   - dayLogs/{autoId} with userId + date (unique per user/date via query)
  */
 
 import { initializeApp, type FirebaseApp } from 'firebase/app';
-import { 
-  getFirestore, 
+import {
+  getFirestore,
   type Firestore,
   collection,
   doc,
@@ -35,558 +25,386 @@ import {
   orderBy,
   limit,
   Timestamp,
-  type QueryDocumentSnapshot,
-  type DocumentData
+  addDoc,
+  type QueryConstraint,
 } from 'firebase/firestore';
-import { getAuth, type Auth, signInAnonymously, onAuthStateChanged, type User } from 'firebase/auth';
-import type { FoodItem, DayLog, UserSettings, MealType, MealEntry } from '../types';
+import {
+  getAuth,
+  type Auth,
+  signInAnonymously,
+  onAuthStateChanged,
+  type User,
+} from 'firebase/auth';
 
-// Configuração do Firebase
+import type { DayLog, FoodItem, MealEntry, MealType, UserSettings } from '../types';
+
+// ==================== Firebase init ====================
+
 const firebaseConfig = {
-  apiKey: "AIzaSyDyvk2-Dsd9wARSiPy57vjzI0XMF09WGpM",
-  authDomain: "nutritrack-silk.firebaseapp.com",
-  projectId: "nutritrack-silk",
-  storageBucket: "nutritrack-silk.firebasestorage.app",
-  messagingSenderId: "1031560309871",
-  appId: "1:1031560309871:web:019e83d9cdaa66fe3b719a"
+  apiKey: 'AIzaSyDyvk2-Dsd9wARSiPy57vjzI0XMF09WGpM',
+  authDomain: 'nutritrack-silk.firebaseapp.com',
+  projectId: 'nutritrack-silk',
+  storageBucket: 'nutritrack-silk.firebasestorage.app',
+  messagingSenderId: '1031560309871',
+  appId: '1:1031560309871:web:019e83d9cdaa66fe3b719a',
 };
 
-// Inicialização do Firebase
-let app: FirebaseApp;
+let app: FirebaseApp | undefined;
 export let db: Firestore;
-let auth: Auth;
+export let auth: Auth;
+
 let currentUser: User | null = null;
 
-/**
- * Inicializa o Firebase e retorna a instância do Firestore
- */
-export function initializeFirebase(): Firestore {
-  if (!app) {
-    app = initializeApp(firebaseConfig);
-  }
-  
-  if (!db) {
-    db = getFirestore(app);
-  }
-  
+function ensureInitialized(): void {
+  if (!app) app = initializeApp(firebaseConfig);
+  if (!db) db = getFirestore(app);
   if (!auth) {
     auth = getAuth(app);
-    
-    // Autenticação anônima para sincronização de dados
-    signInAnonymously(auth).catch((error) => {
-      console.error('Erro na autenticação anônima:', error);
-    });
-    
+
+    // Keep currentUser updated
     onAuthStateChanged(auth, (user) => {
       currentUser = user;
-      console.log('Estado da autenticação alterado:', user ? 'Autenticado' : 'Não autenticado');
     });
   }
-  
-  return db;
 }
 
 /**
- * Retorna a instância do Firestore
+ * Ensures an authenticated user exists (anonymous auth).
  */
-export function getFirestoreInstance(): Firestore {
-  return initializeFirebase();
+export async function initializeAuth(): Promise<User> {
+  ensureInitialized();
+
+  if (auth.currentUser) {
+    currentUser = auth.currentUser;
+    return auth.currentUser;
+  }
+
+  const result = await signInAnonymously(auth);
+  currentUser = result.user;
+  return result.user;
 }
 
-/**
- * Garante que o usuário está autenticado antes de operações de escrita
- */
-function ensureAuthenticated(): Promise<User> {
-  return new Promise((resolve, reject) => {
-    if (currentUser) {
-      resolve(currentUser);
-    } else {
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        unsubscribe();
+async function requireUser(): Promise<User> {
+  ensureInitialized();
+
+  if (currentUser) return currentUser;
+  if (auth.currentUser) {
+    currentUser = auth.currentUser;
+    return auth.currentUser;
+  }
+
+  // Wait for auth state or sign in
+  try {
+    return await initializeAuth();
+  } catch {
+    // fallback: wait for state change
+    return await new Promise<User>((resolve, reject) => {
+      const unsub = onAuthStateChanged(auth, (user) => {
+        unsub();
         if (user) {
+          currentUser = user;
           resolve(user);
         } else {
           reject(new Error('Usuário não autenticado'));
         }
       });
-    }
+    });
+  }
+}
+
+// ==================== Collections ====================
+
+const FOODS_COLLECTION = 'foods';
+const DAYLOGS_COLLECTION = 'dayLogs';
+const SETTINGS_COLLECTION = 'settings';
+
+// ==================== Settings (1 doc per user) ====================
+
+export async function getSettingsFromFirestore(userId: string): Promise<UserSettings | null> {
+  ensureInitialized();
+  const ref = doc(db, SETTINGS_COLLECTION, userId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) return null;
+  return snap.data() as UserSettings;
+}
+
+export async function saveSettingsToFirestore(
+  userId: string,
+  settings: UserSettings
+): Promise<void> {
+  await requireUser();
+  const ref = doc(db, SETTINGS_COLLECTION, userId);
+  await setDoc(
+    ref,
+    {
+      ...settings,
+      updatedAt: Timestamp.now(),
+    } as any,
+    { merge: true }
+  );
+}
+
+// ==================== Foods ====================
+
+export async function getAllFoodsFromFirestore(userId: string): Promise<FoodItem[]> {
+  ensureInitialized();
+  const foodsRef = collection(db, FOODS_COLLECTION);
+
+  const q = query(
+    foodsRef,
+    where('userId', '==', userId),
+    orderBy('createdAt', 'desc')
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as FoodItem));
+}
+
+export async function searchFoodsFromFirestore(userId: string, queryText: string): Promise<FoodItem[]> {
+  const all = await getAllFoodsFromFirestore(userId);
+
+  const normalizedQuery = queryText
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  return all.filter((food) => {
+    const name = (food.name ?? '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    const category = (food.category ?? '').toLowerCase();
+    return name.includes(normalizedQuery) || category.includes(normalizedQuery);
   });
 }
 
-// ==================== FOODS (Alimentos) ====================
+export async function saveFoodToFirestore(userId: string, food: FoodItem): Promise<string> {
+  await requireUser();
 
-const FOODS_COLLECTION = 'foods';
-
-/**
- * Obtém todos os alimentos do Firestore
- */
-export async function getAllFoodsFromFirestore(): Promise<FoodItem[]> {
-  const db = initializeFirebase();
-  const foodsRef = collection(db, FOODS_COLLECTION);
-  const snapshot = await getDocs(foodsRef);
-  
-  return snapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data()
-  } as FoodItem));
-}
-
-/**
- * Obtém um alimento específico pelo ID
- */
-export async function getFoodByIdFromFirestore(id: string): Promise<FoodItem | null> {
-  const db = initializeFirebase();
-  const foodRef = doc(db, FOODS_COLLECTION, id);
-  const snapshot = await getDoc(foodRef);
-  
-  if (snapshot.exists()) {
-    return { id: snapshot.id, ...snapshot.data() } as FoodItem;
+  // If food has an id, upsert by id; otherwise create new doc
+  if (food.id) {
+    const ref = doc(db, FOODS_COLLECTION, food.id);
+    await setDoc(
+      ref,
+      {
+        ...food,
+        userId,
+        updatedAt: Timestamp.now(),
+      } as any,
+      { merge: true }
+    );
+    return food.id;
   }
-  
-  return null;
-}
 
-/**
- * Busca alimentos por nome ou categoria
- */
-export async function searchFoodsFromFirestore(queryText: string): Promise<FoodItem[]> {
-  const db = initializeFirebase();
   const foodsRef = collection(db, FOODS_COLLECTION);
-  
-  // Normaliza a query para busca
-  const normalizedQuery = queryText.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  
-  // Nota: Firestore não suporta busca por texto parcial nativamente
-  // Para produção, considere usar Algolia ou ElasticSearch
-  const snapshot = await getDocs(foodsRef);
-  
-  return snapshot.docs
-    .map(doc => ({ id: doc.id, ...doc.data() } as FoodItem))
-    .filter(food => {
-      const normalizedName = food.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      return normalizedName.includes(normalizedQuery) || 
-             food.category.toLowerCase().includes(normalizedQuery);
-    });
-}
-
-/**
- * Salva um alimento no Firestore
- */
-export async function saveFoodToFirestore(food: FoodItem): Promise<void> {
-  await ensureAuthenticated();
-  const db = initializeFirebase();
-  const foodRef = doc(db, FOODS_COLLECTION, food.id);
-  
-  await setDoc(foodRef, {
+  const docRef = await addDoc(foodsRef, {
     ...food,
+    userId,
+    createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
-  }, { merge: true });
+  } as any);
+
+  return docRef.id;
 }
 
-/**
- * Exclui um alimento do Firestore
- */
-export async function deleteFoodFromFirestore(id: string): Promise<void> {
-  await ensureAuthenticated();
-  const db = initializeFirebase();
-  const foodRef = doc(db, FOODS_COLLECTION, id);
-  
-  await deleteDoc(foodRef);
+export async function deleteFoodFromFirestore(foodId: string): Promise<void> {
+  await requireUser();
+  await deleteDoc(doc(db, FOODS_COLLECTION, foodId));
 }
 
-// ==================== DAY LOGS (Registros Diários) ====================
+// ==================== Day Logs ====================
+// Model: one log per user/date (enforced by query + update)
 
-const DAYLOGS_COLLECTION = 'dayLogs';
-
-/**
- * Obtém o registro de um dia específico
- */
-export async function getDayLogFromFirestore(date: string): Promise<DayLog | null> {
-  const db = initializeFirebase();
-  const logRef = doc(db, DAYLOGS_COLLECTION, date);
-  const snapshot = await getDoc(logRef);
-  
-  if (snapshot.exists()) {
-    return { date: snapshot.id, ...snapshot.data() } as DayLog;
-  }
-  
-  return null;
-}
-
-/**
- * Salva um registro diário no Firestore
- */
-export async function saveDayLogToFirestore(log: DayLog): Promise<void> {
-  await ensureAuthenticated();
-  const db = initializeFirebase();
-  const logRef = doc(db, DAYLOGS_COLLECTION, log.date);
-  
-  await setDoc(logRef, {
-    ...log,
-    updatedAt: Timestamp.now(),
-  }, { merge: true });
-}
-
-/**
- * Obtém os registros mais recentes
- */
-export async function getRecentLogsFromFirestore(days: number): Promise<DayLog[]> {
-  const db = initializeFirebase();
+export async function getDayLogFromFirestore(userId: string, date: string): Promise<DayLog | null> {
+  ensureInitialized();
   const logsRef = collection(db, DAYLOGS_COLLECTION);
-  
+
   const q = query(
     logsRef,
+    where('userId', '==', userId),
+    where('date', '==', date),
+    limit(1)
+  );
+
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+
+  const d = snapshot.docs[0];
+  return { id: d.id, ...(d.data() as any) } as DayLog;
+}
+
+export async function saveDayLogToFirestore(userId: string, log: DayLog): Promise<string> {
+  await requireUser();
+  const logsRef = collection(db, DAYLOGS_COLLECTION);
+
+  const q = query(
+    logsRef,
+    where('userId', '==', userId),
+    where('date', '==', log.date),
+    limit(1)
+  );
+
+  const existing = await getDocs(q);
+
+  if (existing.empty) {
+    const docRef = await addDoc(logsRef, {
+      ...log,
+      userId,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    } as any);
+    return docRef.id;
+  }
+
+  const docId = existing.docs[0].id;
+  await setDoc(
+    doc(db, DAYLOGS_COLLECTION, docId),
+    {
+      ...log,
+      userId,
+      updatedAt: Timestamp.now(),
+    } as any,
+    { merge: true }
+  );
+
+  return docId;
+}
+
+export async function getRecentLogsFromFirestore(userId: string, days: number): Promise<DayLog[]> {
+  ensureInitialized();
+  const logsRef = collection(db, DAYLOGS_COLLECTION);
+
+  const q = query(
+    logsRef,
+    where('userId', '==', userId),
     orderBy('date', 'desc'),
     limit(days)
   );
-  
+
   const snapshot = await getDocs(q);
-  
-  return snapshot.docs.map(doc => ({
-    date: doc.id,
-    ...doc.data()
-  } as DayLog));
+  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as DayLog));
 }
 
-/**
- * Adiciona uma entrada de refeição ao registro diário
- */
-export async function addMealEntryToFirestore(
-  date: string, 
-  meal: MealType, 
-  entry: MealEntry
-): Promise<void> {
-  await ensureAuthenticated();
-  const db = initializeFirebase();
-  const logRef = doc(db, DAYLOGS_COLLECTION, date);
-  
-  // Obtém o log existente ou cria um novo
-  const snapshot = await getDoc(logRef);
-  let log: DayLog;
-  
-  if (snapshot.exists()) {
-    log = { date: snapshot.id, ...snapshot.data() } as DayLog;
-  } else {
-    log = {
-      date,
-      meals: { breakfast: [], lunch: [], dinner: [], snack: [] },
-      totals: { 
-        calories: 0, 
-        protein: 0, 
-        carbs: 0, 
-        sugar: 0, 
-        fat: 0, 
-        saturatedFat: 0, 
-        fiber: 0, 
-        sodium: 0 
-      },
-      goals: { 
-        calories: 2000, 
-        protein: 150, 
-        carbs: 250, 
-        sugar: 50, 
-        fat: 70, 
-        fiber: 30, 
-        sodium: 2300 
-      }
-    };
-  }
-  
-  // Adiciona a entrada
-  log.meals[meal].push(entry);
-  
-  // Recalcula os totais
-  const allEntries = [
-    ...log.meals.breakfast,
-    ...log.meals.lunch,
-    ...log.meals.dinner,
-    ...log.meals.snack
-  ];
-  
-  log.totals = allEntries.reduce((acc, curr) => ({
-    calories: acc.calories + curr.nutrients.calories,
-    protein: acc.protein + curr.nutrients.protein,
-    carbs: acc.carbs + curr.nutrients.carbs,
-    sugar: acc.sugar + curr.nutrients.sugar,
-    fat: acc.fat + curr.nutrients.fat,
-    saturatedFat: acc.saturatedFat + curr.nutrients.saturatedFat,
-    fiber: acc.fiber + curr.nutrients.fiber,
-    sodium: acc.sodium + curr.nutrients.sodium,
-  }), { 
-    calories: 0, 
-    protein: 0, 
-    carbs: 0, 
-    sugar: 0, 
-    fat: 0, 
-    saturatedFat: 0, 
-    fiber: 0, 
-    sodium: 0 
-  });
-  
-  await updateDoc(logRef, {
-    ...log,
-    updatedAt: Timestamp.now(),
-  });
-}
-
-/**
- * Remove uma entrada de refeição do registro diário
- */
-export async function removeMealEntryFromFirestore(
-  date: string, 
-  meal: MealType, 
-  entryId: string
-): Promise<void> {
-  await ensureAuthenticated();
-  const db = initializeFirebase();
-  const logRef = doc(db, DAYLOGS_COLLECTION, date);
-  
-  const snapshot = await getDoc(logRef);
-  if (!snapshot.exists()) return;
-  
-  const log = { date: snapshot.id, ...snapshot.data() } as DayLog;
-  
-  // Remove a entrada
-  log.meals[meal] = log.meals[meal].filter(e => e.id !== entryId);
-  
-  // Recalcula os totais
-  const allEntries = [
-    ...log.meals.breakfast,
-    ...log.meals.lunch,
-    ...log.meals.dinner,
-    ...log.meals.snack
-  ];
-  
-  log.totals = allEntries.reduce((acc, curr) => ({
-    calories: acc.calories + curr.nutrients.calories,
-    protein: acc.protein + curr.nutrients.protein,
-    carbs: acc.carbs + curr.nutrients.carbs,
-    sugar: acc.sugar + curr.nutrients.sugar,
-    fat: acc.fat + curr.nutrients.fat,
-    saturatedFat: acc.saturatedFat + curr.nutrients.saturatedFat,
-    fiber: acc.fiber + curr.nutrients.fiber,
-    sodium: acc.sodium + curr.nutrients.sodium,
-  }), { 
-    calories: 0, 
-    protein: 0, 
-    carbs: 0, 
-    sugar: 0, 
-    fat: 0, 
-    saturatedFat: 0, 
-    fiber: 0, 
-    sodium: 0 
-  });
-  
-  await updateDoc(logRef, {
-    ...log,
-    updatedAt: Timestamp.now(),
-  });
-}
-
-/**
- * Atualiza uma entrada de refeição no registro diário
- */
-export async function updateMealEntryFromFirestore(
-  date: string, 
-  meal: MealType, 
-  entryId: string, 
-  servingsConsumed: number
-): Promise<void> {
-  await ensureAuthenticated();
-  const db = initializeFirebase();
-  const logRef = doc(db, DAYLOGS_COLLECTION, date);
-  
-  const snapshot = await getDoc(logRef);
-  if (!snapshot.exists()) return;
-  
-  const log = { date: snapshot.id, ...snapshot.data() } as DayLog;
-  
-  const entryIndex = log.meals[meal].findIndex(e => e.id === entryId);
-  if (entryIndex === -1) return;
-  
-  const entry = log.meals[meal][entryIndex];
-  
-  // Obtém o alimento original para recalcular nutrientes
-  const originalFood = await getFoodByIdFromFirestore(entry.foodId);
-  if (!originalFood) return;
-  
-  // Recalcula nutrientes com novas porções
-  const newNutrients = {
-    calories: Math.round(originalFood.nutrients.calories * servingsConsumed),
-    protein: Number((originalFood.nutrients.protein * servingsConsumed).toFixed(1)),
-    carbs: Number((originalFood.nutrients.carbs * servingsConsumed).toFixed(1)),
-    sugar: Number((originalFood.nutrients.sugar * servingsConsumed).toFixed(1)),
-    fat: Number((originalFood.nutrients.fat * servingsConsumed).toFixed(1)),
-    saturatedFat: Number((originalFood.nutrients.saturatedFat * servingsConsumed).toFixed(1)),
-    fiber: Number((originalFood.nutrients.fiber * servingsConsumed).toFixed(1)),
-    sodium: Math.round(originalFood.nutrients.sodium * servingsConsumed),
-  };
-  
-  // Atualiza a entrada
-  log.meals[meal][entryIndex] = {
-    ...entry,
-    servingsConsumed,
-    nutrients: newNutrients
-  };
-  
-  // Recalcula os totais
-  const allEntries = [
-    ...log.meals.breakfast,
-    ...log.meals.lunch,
-    ...log.meals.dinner,
-    ...log.meals.snack
-  ];
-  
-  log.totals = allEntries.reduce((acc, curr) => ({
-    calories: acc.calories + curr.nutrients.calories,
-    protein: acc.protein + curr.nutrients.protein,
-    carbs: acc.carbs + curr.nutrients.carbs,
-    sugar: acc.sugar + curr.nutrients.sugar,
-    fat: acc.fat + curr.nutrients.fat,
-    saturatedFat: acc.saturatedFat + curr.nutrients.saturatedFat,
-    fiber: acc.fiber + curr.nutrients.fiber,
-    sodium: acc.sodium + curr.nutrients.sodium,
-  }), { 
-    calories: 0, 
-    protein: 0, 
-    carbs: 0, 
-    sugar: 0, 
-    fat: 0, 
-    saturatedFat: 0, 
-    fiber: 0, 
-    sodium: 0 
-  });
-  
-  await updateDoc(logRef, {
-    ...log,
-    updatedAt: Timestamp.now(),
-  });
-}
-
-// ==================== SETTINGS (Configurações) ====================
-
-const SETTINGS_COLLECTION = 'settings';
-
-/**
- * Obtém as configurações do usuário
- */
-export async function getSettingsFromFirestore(): Promise<UserSettings | null> {
-  const db = initializeFirebase();
-  const settingsRef = doc(db, SETTINGS_COLLECTION, 'user-settings');
-  const snapshot = await getDoc(settingsRef);
-  
-  if (snapshot.exists()) {
-    const data = snapshot.data();
-    return {
-      id: snapshot.id,
-      ...data,
-      goals: data!.goals as UserSettings['goals'],
-      name: data!.name as string
-    } as UserSettings;
-  }
-  
-  return null;
-}
-
-/**
- * Salva as configurações do usuário
- */
-export async function saveSettingsToFirestore(settings: UserSettings): Promise<void> {
-  await ensureAuthenticated();
-  const db = initializeFirebase();
-  const settingsRef = doc(db, SETTINGS_COLLECTION, 'user-settings');
-  
-  await setDoc(settingsRef, {
-    ...settings,
-    updatedAt: Timestamp.now(),
-  }, { merge: true });
-}
-
-// ==================== SYNC (Sincronização) ====================
-
-/**
- * Exporta todos os dados do Firestore
- */
-export async function exportAllDataFromFirestore(): Promise<string> {
-  const db = initializeFirebase();
-  
-  const foods = await getAllFoodsFromFirestore();
-  const dayLogsSnapshot = await getDocs(collection(db, DAYLOGS_COLLECTION));
-  const dayLogs = dayLogsSnapshot.docs.map(doc => ({
-    date: doc.id,
-    ...doc.data()
-  } as DayLog));
-  
-  const settings = await getSettingsFromFirestore();
-  
-  return JSON.stringify({
-    foods,
-    dayLogs,
-    settings,
-    exportedAt: new Date().toISOString()
-  }, null, 2);
-}
-
-/**
- * Importa dados para o Firestore
- */
-export async function importDataToFirestore(jsonString: string): Promise<void> {
-  await ensureAuthenticated();
-  const data = JSON.parse(jsonString);
-  
-  const db = initializeFirebase();
-  
-  // Importa alimentos
-  if (data.foods) {
-    for (const food of data.foods) {
-      const foodRef = doc(db, FOODS_COLLECTION, food.id);
-      await setDoc(foodRef, {
-        ...food,
-        updatedAt: Timestamp.now(),
-      });
-    }
-  }
-  
-  // Importa registros diários
-  if (data.dayLogs) {
-    for (const log of data.dayLogs) {
-      const logRef = doc(db, DAYLOGS_COLLECTION, log.date);
-      await setDoc(logRef, {
-        ...log,
-        updatedAt: Timestamp.now(),
-      });
-    }
-  }
-  
-  // Importa configurações
-  if (data.settings) {
-    const settingsRef = doc(db, SETTINGS_COLLECTION, 'user-settings');
-    await setDoc(settingsRef, {
-      ...data.settings,
-      updatedAt: Timestamp.now(),
-    });
-  }
-}
-
-/**
- * Escuta mudanças em tempo real nos registros diários
- */
-export function subscribeToDayLogs(
-  _callback: (logs: DayLog[]) => void
-): () => void {
-  const db = initializeFirebase();
+export async function getDayLogsFromFirestore(
+  userId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<DayLog[]> {
+  ensureInitialized();
   const logsRef = collection(db, DAYLOGS_COLLECTION);
-  
+
+  const constraints: QueryConstraint[] = [where('userId', '==', userId)];
+  if (startDate) constraints.push(where('date', '>=', startDate));
+  if (endDate) constraints.push(where('date', '<=', endDate));
+  constraints.push(orderBy('date', 'desc'));
+
+  const q = query(logsRef, ...constraints);
+  const snapshot = await getDocs(q);
+
+  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as DayLog));
+}
+
+export async function deleteDayLogFromFirestore(userId: string, date: string): Promise<void> {
+  await requireUser();
+  const logsRef = collection(db, DAYLOGS_COLLECTION);
+
   const q = query(
     logsRef,
-    orderBy('date', 'desc')
+    where('userId', '==', userId),
+    where('date', '==', date)
   );
-  
-  // Nota: Para implementação completa, use onSnapshot do Firestore
-  // Esta é uma implementação simplificada
-  console.log('Inscrição para atualizações em tempo real configurada');
-  
-  return () => {
-    console.log('Cancelando inscrição');
-  };
+
+  const snapshot = await getDocs(q);
+  for (const d of snapshot.docs) {
+    await deleteDoc(d.ref);
+  }
+}
+
+// Optional helpers for meal entries (kept minimal; adjust to your DayLog shape)
+export async function addMealEntryToFirestore(
+  userId: string,
+  date: string,
+  meal: MealType,
+  entry: MealEntry
+): Promise<void> {
+  const log = await getDayLogFromFirestore(userId, date);
+  if (!log) throw new Error('DayLog não encontrado');
+
+  const meals = (log as any).meals ?? {};
+  meals[meal] = [...(meals[meal] ?? []), entry];
+
+  await saveDayLogToFirestore(userId, { ...(log as any), meals } as DayLog);
+}
+
+// ==================== Export / Import ====================
+
+export async function exportAllDataFromFirestore(): Promise<string> {
+  const user = await requireUser();
+
+  const foods = await getAllFoodsFromFirestore(user.uid);
+  const dayLogs = await getDayLogsFromFirestore(user.uid);
+  const settings = await getSettingsFromFirestore(user.uid);
+
+  return JSON.stringify(
+    {
+      foods,
+      dayLogs,
+      settings,
+      exportedAt: new Date().toISOString(),
+    },
+    null,
+    2
+  );
+}
+
+export async function importDataToFirestore(jsonString: string): Promise<void> {
+  const user = await requireUser();
+  const data = JSON.parse(jsonString);
+
+  ensureInitialized();
+
+  // Foods
+  if (Array.isArray(data.foods)) {
+    for (const food of data.foods) {
+      const id = food.id;
+      if (id) {
+        await setDoc(
+          doc(db, FOODS_COLLECTION, id),
+          {
+            ...food,
+            userId: user.uid,
+            updatedAt: Timestamp.now(),
+          },
+          { merge: true }
+        );
+      } else {
+        await addDoc(collection(db, FOODS_COLLECTION), {
+          ...food,
+          userId: user.uid,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        });
+      }
+    }
+  }
+
+  // DayLogs
+  if (Array.isArray(data.dayLogs)) {
+    for (const log of data.dayLogs) {
+      // keep same behavior: upsert by (userId,date)
+      await saveDayLogToFirestore(user.uid, { ...log, userId: user.uid } as DayLog);
+    }
+  }
+
+  // Settings (1 doc per user)
+  if (data.settings) {
+    await setDoc(
+      doc(db, SETTINGS_COLLECTION, user.uid),
+      {
+        ...data.settings,
+        updatedAt: Timestamp.now(),
+      },
+      { merge: true }
+    );
+  }
 }

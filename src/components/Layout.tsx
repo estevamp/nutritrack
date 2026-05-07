@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import BottomNav from './BottomNav';
+import AuthButton from './AuthButton';
 
 const Layout: React.FC = () => {
   return (
@@ -21,10 +22,11 @@ const Layout: React.FC = () => {
         top: 0,
         zIndex: 50,
         display: 'flex',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         alignItems: 'center'
       }}>
         <h1 style={{ margin: 0, fontSize: '1.25rem', color: '#16a34a', fontWeight: 800 }}>NutriTrack</h1>
+        <AuthButton variant="icon" />
       </header>
 
       <main style={{ flex: 1, paddingBottom: '80px' }}>

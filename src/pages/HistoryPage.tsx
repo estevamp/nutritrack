@@ -2,11 +2,11 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getRecentLogs, getDayLog } from '../services/db';
+import { getRecentLogs, getDayLog } from '.././services/db';
 import { type DayLog, type MealType } from '../types';
 import { Calendar, ChevronRight, Edit2, Trash2, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { auth, initializeAuth } from '../services/firebaseService';
+import { auth, initializeAuth } from '../services/firebase';
 
 const HistoryPage: React.FC = () => {
   const [logs, setLogs] = useState<DayLog[]>([]);
@@ -86,7 +86,7 @@ const HistoryPage: React.FC = () => {
   const handleSaveEdits = async () => {
     if (!editingLog || !editingDate || !userId) return;
     
-    const { saveDayLog } = await import('../services/db');
+    const { saveDayLog } = await import('.././services/db');
     await saveDayLog(userId, editingLog);
     
     // Reload logs to reflect changes

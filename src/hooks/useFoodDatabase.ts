@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { type FoodItem } from '../types';
-import { auth, initializeAuth } from '../services/firebaseService';
+import { auth, initializeAuth } from '../services/firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, Timestamp } from 'firebase/firestore';
-import { db } from '../services/firebaseService';
+import { db } from '../services/firebase';
 import { commonFoods } from '../data/commonFoods';
 
 const FOODS_COLLECTION = 'foods';
