@@ -23,7 +23,7 @@ import {
 } from 'firebase/firestore';
 
 import { db } from './firebase';
-import type { DayLog, Food } from '../types';
+import type { DayLog, Food, NutrientGoals } from '../types';
 
 const LOGS_COLLECTION = 'dayLogs';
 const FOODS_COLLECTION = 'foods';
@@ -79,7 +79,7 @@ export async function getDayLog(userId: string, date: string): Promise<DayLog | 
   if (querySnapshot.empty) return null;
 
   const snap = querySnapshot.docs[0];
-  return { id: snap.id, ...(snap.data() as any) } as DayLog;
+  return { id: snap.id, ...(snap.data() as Omit<DayLog, 'id'>) } as DayLog;
 }
 
 export async function getDayLogs(
@@ -97,7 +97,7 @@ export async function getDayLogs(
   const q = query(logsRef, ...constraints);
   const querySnapshot = await getDocs(q);
 
-  return querySnapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as DayLog));
+  return querySnapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<DayLog, 'id'>) } as DayLog));
 }
 
 export async function getRecentLogs(userId: string, days: number): Promise<DayLog[]> {
@@ -111,7 +111,7 @@ export async function getRecentLogs(userId: string, days: number): Promise<DayLo
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as DayLog));
+  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<DayLog, 'id'>) } as DayLog));
 }
 
 export async function deleteDayLog(userId: string, date: string): Promise<void> {
@@ -154,7 +154,7 @@ export async function getCustomFoods(userId: string): Promise<Food[]> {
   );
 
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as Food));
+  return querySnapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Food, 'id'>) } as Food));
 }
 
 export async function deleteCustomFood(foodId: string): Promise<void> {
@@ -172,21 +172,23 @@ export async function getFoodById(id: string): Promise<Food | null> {
   const foodRef = doc(db, FOODS_COLLECTION, id);
   const snapshot = await getDoc(foodRef);
   if (!snapshot.exists()) return null;
-  return { id: snapshot.id, ...(snapshot.data() as any) } as Food;
+  return { id: snapshot.id, ...(snapshot.data() as Omit<Food, 'id'>) } as Food;
 }
 
 // ==================== Settings ====================
 
-export async function getSettings(userId: string): Promise<{ name: string; goals: any } | null> {
+type StoredSettings = { name: string; goals: NutrientGoals };
+
+export async function getSettings(userId: string): Promise<StoredSettings | null> {
   const settingsRef = doc(db, SETTINGS_COLLECTION, userId);
   const snapshot = await getDoc(settingsRef);
   if (!snapshot.exists()) return null;
-  return snapshot.data() as { name: string; goals: any };
+  return snapshot.data() as StoredSettings;
 }
 
 export async function saveSettings(
   userId: string,
-  settings: { name: string; goals: any }
+  settings: StoredSettings
 ): Promise<void> {
   const settingsRef = doc(db, SETTINGS_COLLECTION, userId);
   await setDoc(settingsRef, settings, { merge: true });

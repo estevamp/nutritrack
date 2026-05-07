@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { FoodItem, NutrientInfo } from '../types';
 import { X } from 'lucide-react';
 
+type FoodCategory = FoodItem['category'];
+
 interface AddCustomFoodModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -10,7 +12,7 @@ interface AddCustomFoodModalProps {
 
 const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose, onAdd }) => {
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<FoodItem['category']>('other');
+  const [category, setCategory] = useState<FoodCategory>('other');
   const [servingLabel, setServingLabel] = useState('100g');
   const [nutrients, setNutrients] = useState<NutrientInfo>({
     calories: 0,
@@ -87,7 +89,7 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Categoria</label>
               <select 
-                value={category} onChange={e => setCategory(e.target.value as any)}
+                value={category} onChange={e => setCategory(e.target.value as FoodCategory)}
                 style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
               >
                 <option value="grain">Grãos</option>

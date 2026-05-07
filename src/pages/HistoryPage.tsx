@@ -5,35 +5,24 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { getRecentLogs, getDayLog } from '.././services/db';
 import { type DayLog, type MealType } from '../types';
 import { Calendar, ChevronRight, Edit2, Trash2, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { auth, initializeAuth } from '../services/firebase';
+import { useAuth } from '../auth/useAuth';
 
 const HistoryPage: React.FC = () => {
+  const { user } = useAuth();
   const [logs, setLogs] = useState<DayLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
 
   const [editingDate, setEditingDate] = useState<string | null>(null);
   const [editingLog, setEditingLog] = useState<DayLog | null>(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const initializeUser = async () => {
-      if (auth.currentUser) {
-        setUserId(auth.currentUser.uid);
-      } else {
-        const user = await initializeAuth();
-        if (user) {
-          setUserId(user.uid);
-        }
-      }
-    };
-    initializeUser();
-  }, []);
+  const userId = user?.uid ?? null;
 
   useEffect(() => {
     const loadHistory = async () => {
-      if (!userId) return;
+      if (!userId) {
+        setLogs([]);
+        setIsLoading(false);
+        return;
+      }
       const recentLogs = await getRecentLogs(userId, 30);
       setLogs(recentLogs);
       setIsLoading(false);

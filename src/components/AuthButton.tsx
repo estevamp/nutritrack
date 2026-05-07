@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { signInWithGoogle, logout, onAuthStateChange, getCurrentUser } from '.././services/googleAuthService';
+import { signInWithGoogle, logout, onAuthStateChange } from '.././services/googleAuthService';
 import type { User } from 'firebase/auth';
 
 interface AuthButtonProps {

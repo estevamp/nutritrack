@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 
-// @ts-ignore
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const UpdatePrompt: React.FC = () => {
@@ -11,7 +10,7 @@ const UpdatePrompt: React.FC = () => {
     needUpdate,
     updateServiceWorker,
   } = useRegisterSW({
-    onRegistered(r: any) {
+    onRegistered(r: ServiceWorkerRegistration | undefined) {
       console.log('SW Registered: ' + r);
     },
     onRegisterError(error: Error) {

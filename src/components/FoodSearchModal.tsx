@@ -36,12 +36,16 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClose, onSe
       // Find the food in the database
       const food = foods.find(f => f.id === editingEntry.foodId);
       if (food) {
-        setSelectedFood(food);
-        setServings(editingEntry.servingsConsumed);
+        queueMicrotask(() => {
+          setSelectedFood(food);
+          setServings(editingEntry.servingsConsumed);
+        });
       }
     } else if (!editingEntry) {
-      setSelectedFood(null);
-      setServings(1);
+      queueMicrotask(() => {
+        setSelectedFood(null);
+        setServings(1);
+      });
     }
   }, [editingEntry, isOpen, foods]);
 

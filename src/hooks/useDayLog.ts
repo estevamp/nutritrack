@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import type { DayLog, MealType, FoodItem, MealEntry, NutrientInfo, NutrientGoals } from '../types';
-import { auth, initializeAuth } from '../services/firebase';
+import { useAuth } from '../auth/useAuth';
 import { saveDayLog, getDayLog, getSettings, saveSettings } from '../services/db';
 
 // ---------------------------------------------------------------------------
@@ -40,30 +40,24 @@ function computeTotals(meals: Record<MealType, MealEntry[]>): NutrientInfo {
   return totals;
 }
 
-async function getUserId(): Promise<string> {
-  if (auth.currentUser) {
-    console.log(`[useDayLog] Using cached user: ${auth.currentUser.uid}`);
-    return auth.currentUser.uid;
-  }
-  console.log('[useDayLog] No cached user, initializing auth...');
-  const user = await initializeAuth();
-  if (!user) throw new Error('Unable to authenticate with Firebase');
-  console.log(`[useDayLog] Auth initialized, user: ${user.uid}`);
-  return user.uid;
-}
-
 // ---------------------------------------------------------------------------
 // useDayLog
 // ---------------------------------------------------------------------------
 
 export function useDayLog(date: string) {
+  const { user } = useAuth();
   const [dayLog, setDayLog] = useState<DayLog | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshLog = useCallback(async () => {
+    if (!user) {
+      setDayLog(null);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
-      const userId = await getUserId();
+      const userId = user.uid;
       const daylog = await getDayLog(userId, date);
 
       if (daylog) {
@@ -85,10 +79,10 @@ export function useDayLog(date: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [date]);
+  }, [date, user]);
 
   useEffect(() => {
-    refreshLog();
+    void Promise.resolve().then(refreshLog);
   }, [refreshLog]);
 
   const addFood = async (meal: MealType, food: FoodItem, servings: number) => {
@@ -115,7 +109,8 @@ export function useDayLog(date: string) {
 
       if (!dayLog) return;
 
-      const userId = await getUserId();
+      if (!user) return;
+      const userId = user.uid;
       const updatedMeals = {
         ...dayLog.meals,
         [meal]: [...dayLog.meals[meal], entry],
@@ -136,9 +131,10 @@ export function useDayLog(date: string) {
 
   const removeEntry = async (meal: MealType, entryId: string) => {
     try {
+      if (!user) return;
       if (!dayLog) return;
 
-      const userId = await getUserId();
+      const userId = user.uid;
       const updatedMeals = {
         ...dayLog.meals,
         [meal]: dayLog.meals[meal].filter(e => e.id !== entryId),
@@ -160,8 +156,8 @@ export function useDayLog(date: string) {
   const updateEntry = async (meal: MealType, entryId: string, servings: number) => {
     try {
       if (!dayLog) return;
-
-      const userId = await getUserId();
+      if (!user) return;
+      const userId = user.uid;
       const updatedMeals = {
         ...dayLog.meals,
         [meal]: dayLog.meals[meal].map(e => {
@@ -236,13 +232,18 @@ export function useDayLog(date: string) {
 // ---------------------------------------------------------------------------
 
 export function useGoals() {
+  const { user } = useAuth();
   const [goals, setGoals] = useState<NutrientGoals>(DEFAULT_GOALS);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadGoals = async () => {
       try {
-        const userId = await getUserId();
+        if (!user) {
+          setGoals(DEFAULT_GOALS);
+          return;
+        }
+        const userId = user.uid;
         const settings = await getSettings(userId);
         if (settings?.goals) setGoals(settings.goals);
       } catch (error) {
@@ -252,10 +253,11 @@ export function useGoals() {
       }
     };
     loadGoals();
-  }, []);
+  }, [user]);
 
   const saveGoals = async (newGoals: NutrientGoals) => {
-    const userId = await getUserId();
+    if (!user) return;
+    const userId = user.uid;
     const existing = await getSettings(userId);
     await saveSettings(userId, { name: existing?.name ?? 'Usuário', goals: newGoals });
     setGoals(newGoals);

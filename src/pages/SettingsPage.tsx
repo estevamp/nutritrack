@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useGoals } from '../hooks/useDayLog';
 import { getSettings, saveSettings } from '../services/db';
 import { exportAllDataFromFirestore, importDataToFirestore } from '../services/firebase';
-import { Download, Upload, Trash2, Save, User, Link as LinkIcon, Database } from 'lucide-react';
+import { Download, Upload, Trash2, Save, User, Database } from 'lucide-react';
 import { auth } from '../services/firebase';
 
 const SettingsPage: React.FC = () => {
@@ -55,7 +55,7 @@ const SettingsPage: React.FC = () => {
         await importDataToFirestore(json);
         alert('Dados importados com sucesso! O app será recarregado.');
         window.location.reload();
-      } catch (err) {
+      } catch {
         alert('Erro ao importar arquivo. Verifique se o formato é válido.');
       }
     };

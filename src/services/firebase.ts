@@ -2,7 +2,7 @@
  * Firebase (single source of truth)
  *
  * - One Firebase app instance
- * - Exports: auth, db, initializeAuth
+ * - Exports: auth, db
  * - Firestore model:
  *   - settings/{uid}
  *   - foods/{autoId} with userId
@@ -18,7 +18,6 @@ import {
   getDoc,
   getDocs,
   setDoc,
-  updateDoc,
   deleteDoc,
   query,
   where,
@@ -28,15 +27,28 @@ import {
   addDoc,
   type QueryConstraint,
 } from 'firebase/firestore';
-import {
-  getAuth,
-  type Auth,
-  signInAnonymously,
-  onAuthStateChanged,
-  type User,
-} from 'firebase/auth';
-
+import { getAuth, type Auth, onAuthStateChanged, type User, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import type { DayLog, FoodItem, MealEntry, MealType, UserSettings } from '../types';
+
+type StoredFoodItem = Omit<FoodItem, 'id'> & {
+  id?: string;
+  userId?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
+
+type StoredDayLog = Omit<DayLog, 'id'> & {
+  id?: string;
+  userId?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
+
+type ImportPayload = {
+  foods?: StoredFoodItem[];
+  dayLogs?: StoredDayLog[];
+  settings?: UserSettings;
+};
 
 // ==================== Firebase init ====================
 
@@ -61,35 +73,12 @@ function ensureInitialized(): void {
   if (!auth) {
     auth = getAuth(app);
 
-    // Keep currentUser updated
+    setPersistence(auth, browserLocalPersistence).catch(() => {});
+
     onAuthStateChanged(auth, (user) => {
       currentUser = user;
     });
   }
-}
-
-/**
- * Initializes Firebase services (app, firestore, auth).
- * Safe to call multiple times.
- */
-export function initFirebase(): void {
-  ensureInitialized();
-}
-
-/**
- * Ensures an authenticated user exists (anonymous auth).
- */
-export async function initializeAuth(): Promise<User> {
-  ensureInitialized();
-
-  if (auth.currentUser) {
-    currentUser = auth.currentUser;
-    return auth.currentUser;
-  }
-
-  const result = await signInAnonymously(auth);
-  currentUser = result.user;
-  return result.user;
 }
 
 async function requireUser(): Promise<User> {
@@ -101,23 +90,25 @@ async function requireUser(): Promise<User> {
     return auth.currentUser;
   }
 
-  // Wait for auth state or sign in
-  try {
-    return await initializeAuth();
-  } catch {
-    // fallback: wait for state change
-    return await new Promise<User>((resolve, reject) => {
-      const unsub = onAuthStateChanged(auth, (user) => {
-        unsub();
-        if (user) {
-          currentUser = user;
-          resolve(user);
-        } else {
-          reject(new Error('Usuário não autenticado'));
-        }
-      });
+  return await new Promise<User>((resolve, reject) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      unsub();
+      if (user) {
+        currentUser = user;
+        resolve(user);
+      } else {
+        reject(new Error('Usuário não autenticado'));
+      }
     });
-  }
+  });
+}
+
+/**
+ * Initializes Firebase services (app, firestore, auth).
+ * Safe to call multiple times.
+ */
+export function initFirebase(): void {
+  ensureInitialized();
 }
 
 // ==================== Collections ====================
@@ -147,7 +138,7 @@ export async function saveSettingsToFirestore(
     {
       ...settings,
       updatedAt: Timestamp.now(),
-    } as any,
+    },
     { merge: true }
   );
 }
@@ -165,7 +156,7 @@ export async function getAllFoodsFromFirestore(userId: string): Promise<FoodItem
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as FoodItem));
+  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as StoredFoodItem) } as FoodItem));
 }
 
 export async function searchFoodsFromFirestore(userId: string, queryText: string): Promise<FoodItem[]> {
@@ -198,7 +189,7 @@ export async function saveFoodToFirestore(userId: string, food: FoodItem): Promi
         ...food,
         userId,
         updatedAt: Timestamp.now(),
-      } as any,
+      },
       { merge: true }
     );
     return food.id;
@@ -210,7 +201,7 @@ export async function saveFoodToFirestore(userId: string, food: FoodItem): Promi
     userId,
     createdAt: Timestamp.now(),
     updatedAt: Timestamp.now(),
-  } as any);
+  });
 
   return docRef.id;
 }
@@ -238,7 +229,7 @@ export async function getDayLogFromFirestore(userId: string, date: string): Prom
   if (snapshot.empty) return null;
 
   const d = snapshot.docs[0];
-  return { id: d.id, ...(d.data() as any) } as DayLog;
+  return { id: d.id, ...(d.data() as StoredDayLog) } as DayLog;
 }
 
 export async function saveDayLogToFirestore(userId: string, log: DayLog): Promise<string> {
@@ -260,7 +251,7 @@ export async function saveDayLogToFirestore(userId: string, log: DayLog): Promis
       userId,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-    } as any);
+    });
     return docRef.id;
   }
 
@@ -271,7 +262,7 @@ export async function saveDayLogToFirestore(userId: string, log: DayLog): Promis
       ...log,
       userId,
       updatedAt: Timestamp.now(),
-    } as any,
+    },
     { merge: true }
   );
 
@@ -290,7 +281,7 @@ export async function getRecentLogsFromFirestore(userId: string, days: number): 
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as DayLog));
+  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as StoredDayLog) } as DayLog));
 }
 
 export async function getDayLogsFromFirestore(
@@ -309,7 +300,7 @@ export async function getDayLogsFromFirestore(
   const q = query(logsRef, ...constraints);
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as DayLog));
+  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as StoredDayLog) } as DayLog));
 }
 
 export async function deleteDayLogFromFirestore(userId: string, date: string): Promise<void> {
@@ -338,10 +329,10 @@ export async function addMealEntryToFirestore(
   const log = await getDayLogFromFirestore(userId, date);
   if (!log) throw new Error('DayLog não encontrado');
 
-  const meals = (log as any).meals ?? {};
+  const meals = log.meals;
   meals[meal] = [...(meals[meal] ?? []), entry];
 
-  await saveDayLogToFirestore(userId, { ...(log as any), meals } as DayLog);
+  await saveDayLogToFirestore(userId, { ...log, meals });
 }
 
 // ==================== Export / Import ====================
@@ -367,7 +358,7 @@ export async function exportAllDataFromFirestore(): Promise<string> {
 
 export async function importDataToFirestore(jsonString: string): Promise<void> {
   const user = await requireUser();
-  const data = JSON.parse(jsonString);
+  const data = JSON.parse(jsonString) as ImportPayload;
 
   ensureInitialized();
 

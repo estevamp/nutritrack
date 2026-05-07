@@ -1,23 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { type FoodItem } from '../types';
-import { auth, initializeAuth } from '../services/firebase';
 import { collection, addDoc, query, where, getDocs, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { commonFoods } from '../data/commonFoods';
+import { useAuth } from '../auth/useAuth';
 
 const FOODS_COLLECTION = 'foods';
-
-async function getUserId(): Promise<string> {
-  if (auth.currentUser) {
-    console.log(`[useFoodDatabase] Using cached user: ${auth.currentUser.uid}`);
-    return auth.currentUser.uid;
-  }
-  console.log('[useFoodDatabase] No cached user, initializing auth...');
-  const user = await initializeAuth();
-  if (!user) throw new Error('Unable to authenticate with Firebase');
-  console.log(`[useFoodDatabase] Auth initialized, user: ${user.uid}`);
-  return user.uid;
-}
 
 async function getCustomFoods(userId: string): Promise<FoodItem[]> {
   const foodsRef = collection(db, FOODS_COLLECTION);
@@ -34,29 +22,19 @@ async function getCustomFoods(userId: string): Promise<FoodItem[]> {
   } as unknown as FoodItem));
 }
 
-async function getAllFoodsIncludingCommon(userId: string): Promise<FoodItem[]> {
-  const foodsRef = collection(db, FOODS_COLLECTION);
-  const q = query(foodsRef, where('userId', '==', userId));
-
-  const querySnapshot = await getDocs(q);
-  const customFoods = querySnapshot.docs.map((doc) => ({
-    id: doc.id,
-    ...doc.data(),
-  } as unknown as FoodItem));
-
-  // Add common foods that are not custom
-  const allFoods = [...commonFoods, ...customFoods];
-  return allFoods;
-}
-
 export function useFoodDatabase() {
+  const { user } = useAuth();
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshFoods = useCallback(async () => {
     setIsLoading(true);
     try {
-      const userId = await getUserId();
+      if (!user) {
+        setFoods(commonFoods);
+        return;
+      }
+      const userId = user.uid;
       console.log(`[useFoodDatabase] Loading custom foods for user ${userId}`);
       const customFoods = await getCustomFoods(userId);
       
@@ -69,10 +47,10 @@ export function useFoodDatabase() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    refreshFoods();
+    void Promise.resolve().then(refreshFoods);
   }, [refreshFoods]);
 
   const normalizeText = (text: string) => {
@@ -94,7 +72,8 @@ export function useFoodDatabase() {
 
   const addCustomFood = async (foodData: Omit<FoodItem, 'id' | 'isCustom'>) => {
     try {
-      const userId = await getUserId();
+      if (!user) return;
+      const userId = user.uid;
       const foodsRef = collection(db, FOODS_COLLECTION);
       
       await addDoc(foodsRef, {
@@ -113,7 +92,7 @@ export function useFoodDatabase() {
 
   const deleteCustomFood = async (id: string) => {
     try {
-      const userId = await getUserId();
+      if (!user) return;
       const foodRef = doc(db, FOODS_COLLECTION, id);
       
       // Verify that the food belongs to the current user and is custom
