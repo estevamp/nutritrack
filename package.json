@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "date-fns": "^4.1.0",
-    "firebase": "^11.2.0",
+    "firebase": "^12.12.1",
     "idb": "^8.0.3",
     "lucide-react": "^1.14.0",
     "react": "^19.2.5",
@@ -29,6 +29,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
+    "tsx": "^4.21.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",
     "vite": "^8.0.10",

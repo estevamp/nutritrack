@@ -1,263 +1,134 @@
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
-import type { FoodItem, DayLog, UserSettings, MealType, MealEntry } from '../types';
+import {
+  collection,
+  addDoc,
+  query,
+  where,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+  doc,
+  Timestamp,
+  orderBy,
+  QueryConstraint,
+} from 'firebase/firestore';
+import { db as firebaseDb } from './firebase';
+import { DayLog, Food } from '../types';
 
-interface NutriTrackDB extends DBSchema {
-  foods: {
-    key: string;
-    value: FoodItem;
-    indexes: { 'name': string; 'category': string };
-  };
-  dayLogs: {
-    key: string;
-    value: DayLog;
-  };
-  settings: {
-    key: string;
-    value: UserSettings;
-  };
-}
+const LOGS_COLLECTION = 'dayLogs';
+const FOODS_COLLECTION = 'foods';
 
-const DB_NAME = 'nutrition-tracker-db';
-const DB_VERSION = 1;
-
-let dbPromise: Promise<IDBPDatabase<NutriTrackDB>>;
-
-const getDB = () => {
-  if (!dbPromise) {
-    dbPromise = openDB<NutriTrackDB>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
-        const foodStore = db.createObjectStore('foods', { keyPath: 'id' });
-        foodStore.createIndex('name', 'name');
-        foodStore.createIndex('category', 'category');
-
-        db.createObjectStore('dayLogs', { keyPath: 'date' });
-        db.createObjectStore('settings', { keyPath: 'id' });
-      },
+export async function saveDayLog(userId: string, dayLog: DayLog): Promise<string> {
+  const logsRef = collection(firebaseDb, LOGS_COLLECTION);
+  const q = query(
+    logsRef,
+    where('userId', '==', userId),
+    where('date', '==', dayLog.date)
+  );
+  
+  const existingDocs = await getDocs(q);
+  
+  if (existingDocs.empty) {
+    const docRef = await addDoc(logsRef, {
+      userId,
+      ...dayLog,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
     });
+    return docRef.id;
+  } else {
+    const docId = existingDocs.docs[0].id;
+    await updateDoc(doc(firebaseDb, LOGS_COLLECTION, docId), {
+      ...dayLog,
+      updatedAt: Timestamp.now(),
+    });
+    return docId;
   }
-  return dbPromise;
-};
-
-// Foods
-export async function getAllFoods(): Promise<FoodItem[]> {
-  const db = await getDB();
-  return db.getAll('foods');
 }
 
-export async function getFoodById(id: string): Promise<FoodItem | undefined> {
-  const db = await getDB();
-  return db.get('foods', id);
+export async function getDayLogs(
+  userId: string,
+  startDate?: string,
+  endDate?: string
+): Promise<DayLog[]> {
+  const logsRef = collection(firebaseDb, LOGS_COLLECTION);
+  const constraints: QueryConstraint[] = [where('userId', '==', userId)];
+
+  if (startDate) constraints.push(where('date', '>=', startDate));
+  if (endDate) constraints.push(where('date', '<=', endDate));
+  constraints.push(orderBy('date', 'desc'));
+
+  const q = query(logsRef, ...constraints);
+  const querySnapshot = await getDocs(q);
+
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  } as DayLog));
 }
 
-export async function searchFoods(query: string): Promise<FoodItem[]> {
-  const db = await getDB();
-  const allFoods = await db.getAll('foods');
-  const normalizedQuery = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  
-  return allFoods.filter(food => {
-    const normalizedName = food.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return normalizedName.includes(normalizedQuery) || food.category.includes(normalizedQuery);
+export async function getDayLog(userId: string, date: string): Promise<DayLog | null> {
+  const logsRef = collection(firebaseDb, LOGS_COLLECTION);
+  const q = query(
+    logsRef,
+    where('userId', '==', userId),
+    where('date', '==', date)
+  );
+
+  const querySnapshot = await getDocs(q);
+  if (querySnapshot.empty) return null;
+
+  const doc = querySnapshot.docs[0];
+  return { id: doc.id, ...doc.data() } as DayLog;
+}
+
+export async function deleteDayLog(userId: string, date: string): Promise<void> {
+  const logsRef = collection(firebaseDb, LOGS_COLLECTION);
+  const q = query(
+    logsRef,
+    where('userId', '==', userId),
+    where('date', '==', date)
+  );
+
+  const querySnapshot = await getDocs(q);
+  for (const doc of querySnapshot.docs) {
+    await deleteDoc(doc.ref);
+  }
+}
+
+export async function saveCustomFood(userId: string, food: Food): Promise<string> {
+  const foodsRef = collection(firebaseDb, FOODS_COLLECTION);
+  const docRef = await addDoc(foodsRef, {
+    userId,
+    ...food,
+    isCustom: true,
+    createdAt: Timestamp.now(),
   });
+  return docRef.id;
 }
 
-export async function saveFood(food: FoodItem): Promise<void> {
-  const db = await getDB();
-  await db.put('foods', food);
+export async function getCustomFoods(userId: string): Promise<Food[]> {
+  const foodsRef = collection(firebaseDb, FOODS_COLLECTION);
+  const q = query(
+    foodsRef,
+    where('userId', '==', userId),
+    where('isCustom', '==', true),
+    orderBy('createdAt', 'desc')
+  );
+
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map((doc) => ({
+    id: doc.id,
+    ...doc.data(),
+  } as Food));
 }
 
-export async function deleteFood(id: string): Promise<void> {
-  const db = await getDB();
-  await db.delete('foods', id);
+export async function deleteCustomFood(foodId: string): Promise<void> {
+  await deleteDoc(doc(firebaseDb, FOODS_COLLECTION, foodId));
 }
 
-// Day Logs
-export async function getDayLog(date: string): Promise<DayLog | undefined> {
-  const db = await getDB();
-  return db.get('dayLogs', date);
-}
-
-export async function saveDayLog(log: DayLog): Promise<void> {
-  const db = await getDB();
-  await db.put('dayLogs', log);
-}
-
-export async function getRecentLogs(days: number): Promise<DayLog[]> {
-  const db = await getDB();
-  const allLogs = await db.getAll('dayLogs');
-  return allLogs
-    .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, days);
-}
-
-export async function getAllDayLogs(): Promise<DayLog[]> {
-  const db = await getDB();
-  return db.getAll('dayLogs');
-}
-
-export async function addMealEntry(date: string, meal: MealType, entry: MealEntry): Promise<void> {
-  const db = await getDB();
-  const log = await getDayLog(date) || {
-    date,
-    meals: { breakfast: [], lunch: [], dinner: [], snack: [] },
-    totals: { calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0, saturatedFat: 0, fiber: 0, sodium: 0 },
-    goals: { calories: 2000, protein: 150, carbs: 250, sugar: 50, fat: 70, fiber: 30, sodium: 2300 } // Default goals
-  };
-
-  log.meals[meal].push(entry);
-  
-  // Recalculate totals
-  const allEntries = [
-    ...log.meals.breakfast,
-    ...log.meals.lunch,
-    ...log.meals.dinner,
-    ...log.meals.snack
-  ];
-
-  log.totals = allEntries.reduce((acc, curr) => ({
-    calories: acc.calories + curr.nutrients.calories,
-    protein: acc.protein + curr.nutrients.protein,
-    carbs: acc.carbs + curr.nutrients.carbs,
-    sugar: acc.sugar + curr.nutrients.sugar,
-    fat: acc.fat + curr.nutrients.fat,
-    saturatedFat: acc.saturatedFat + curr.nutrients.saturatedFat,
-    fiber: acc.fiber + curr.nutrients.fiber,
-    sodium: acc.sodium + curr.nutrients.sodium,
-  }), { calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0, saturatedFat: 0, fiber: 0, sodium: 0 });
-
-  await db.put('dayLogs', log);
-}
-
-export async function removeMealEntry(date: string, meal: MealType, entryId: string): Promise<void> {
-  const db = await getDB();
-  const log = await getDayLog(date);
-  if (!log) return;
-
-  log.meals[meal] = log.meals[meal].filter(e => e.id !== entryId);
-
-  // Recalculate totals
-  const allEntries = [
-    ...log.meals.breakfast,
-    ...log.meals.lunch,
-    ...log.meals.dinner,
-    ...log.meals.snack
-  ];
-
-  log.totals = allEntries.reduce((acc, curr) => ({
-    calories: acc.calories + curr.nutrients.calories,
-    protein: acc.protein + curr.nutrients.protein,
-    carbs: acc.carbs + curr.nutrients.carbs,
-    sugar: acc.sugar + curr.nutrients.sugar,
-    fat: acc.fat + curr.nutrients.fat,
-    saturatedFat: acc.saturatedFat + curr.nutrients.saturatedFat,
-    fiber: acc.fiber + curr.nutrients.fiber,
-    sodium: acc.sodium + curr.nutrients.sodium,
-  }), { calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0, saturatedFat: 0, fiber: 0, sodium: 0 });
-
-  await db.put('dayLogs', log);
-}
-
-export async function updateMealEntry(date: string, meal: MealType, entryId: string, servingsConsumed: number): Promise<void> {
-  const db = await getDB();
-  const log = await getDayLog(date);
-  if (!log) return;
-
-  const entryIndex = log.meals[meal].findIndex(e => e.id === entryId);
-  if (entryIndex === -1) return;
-
-  const entry = log.meals[meal][entryIndex];
-  
-  // Get the original food to recalculate nutrients based on new servings
-  const originalFood = await getFoodById(entry.foodId);
-  if (!originalFood) return;
-
-  // Recalculate nutrients with new servings
-  const newNutrients = {
-    calories: Math.round(originalFood.nutrients.calories * servingsConsumed),
-    protein: Number((originalFood.nutrients.protein * servingsConsumed).toFixed(1)),
-    carbs: Number((originalFood.nutrients.carbs * servingsConsumed).toFixed(1)),
-    sugar: Number((originalFood.nutrients.sugar * servingsConsumed).toFixed(1)),
-    fat: Number((originalFood.nutrients.fat * servingsConsumed).toFixed(1)),
-    saturatedFat: Number((originalFood.nutrients.saturatedFat * servingsConsumed).toFixed(1)),
-    fiber: Number((originalFood.nutrients.fiber * servingsConsumed).toFixed(1)),
-    sodium: Math.round(originalFood.nutrients.sodium * servingsConsumed),
-  };
-
-  // Update the entry
-  log.meals[meal][entryIndex] = {
-    ...entry,
-    servingsConsumed,
-    nutrients: newNutrients
-  };
-
-  // Recalculate totals
-  const allEntries = [
-    ...log.meals.breakfast,
-    ...log.meals.lunch,
-    ...log.meals.dinner,
-    ...log.meals.snack
-  ];
-
-  log.totals = allEntries.reduce((acc, curr) => ({
-    calories: acc.calories + curr.nutrients.calories,
-    protein: acc.protein + curr.nutrients.protein,
-    carbs: acc.carbs + curr.nutrients.carbs,
-    sugar: acc.sugar + curr.nutrients.sugar,
-    fat: acc.fat + curr.nutrients.fat,
-    saturatedFat: acc.saturatedFat + curr.nutrients.saturatedFat,
-    fiber: acc.fiber + curr.nutrients.fiber,
-    sodium: acc.sodium + curr.nutrients.sodium,
-  }), { calories: 0, protein: 0, carbs: 0, sugar: 0, fat: 0, saturatedFat: 0, fiber: 0, sodium: 0 });
-
-  await db.put('dayLogs', log);
-}
-
-// Settings
-export async function getSettings(): Promise<UserSettings | undefined> {
-  const db = await getDB();
-  return db.get('settings', 'user-settings');
-}
-
-export async function saveSettings(settings: UserSettings): Promise<void> {
-  const db = await getDB();
-  await db.put('settings', { ...settings, id: 'user-settings' } as any);
-}
-
-// Export/Import
-export async function exportAllData(): Promise<string> {
-  const db = await getDB();
-  const foods = await db.getAll('foods');
-  const dayLogs = await db.getAll('dayLogs');
-  const settings = await db.get('settings', 'user-settings');
-
-  return JSON.stringify({
-    foods,
-    dayLogs,
-    settings,
-    exportedAt: new Date().toISOString()
-  }, null, 2);
-}
-
-export async function importData(jsonString: string): Promise<void> {
-  const db = await getDB();
-  const data = JSON.parse(jsonString);
-
-  const tx = db.transaction(['foods', 'dayLogs', 'settings'], 'readwrite');
-  
-  if (data.foods) {
-    for (const food of data.foods) {
-      await tx.objectStore('foods').put(food);
-    }
-  }
-  
-  if (data.dayLogs) {
-    for (const log of data.dayLogs) {
-      await tx.objectStore('dayLogs').put(log);
-    }
-  }
-  
-  if (data.settings) {
-    await tx.objectStore('settings').put(data.settings);
-  }
-
-  await tx.done;
+export async function updateCustomFood(foodId: string, food: Partial<Food>): Promise<void> {
+  await updateDoc(doc(firebaseDb, FOODS_COLLECTION, foodId), {
+    ...food,
+    updatedAt: Timestamp.now(),
+  });
 }

@@ -5,9 +5,16 @@ import FoodsPage from './pages/FoodsPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsPage from './pages/SettingsPage';
 import UpdatePrompt from './components/UpdatePrompt';
+import { useEffect } from 'react';
+import { initializeAuth } from './services/firebaseService';
+
 import MigrationTool from './components/MigrationTool';
 
 function App() {
+    useEffect(() => {
+    // Initialize Firebase authentication
+    initializeAuth();
+  }, []);
   return (
     <BrowserRouter>
       <Routes>

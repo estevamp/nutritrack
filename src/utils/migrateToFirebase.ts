@@ -286,4 +286,4 @@ export async function clearFirebaseData(): Promise<void> {
     console.error('❌ Erro ao limpar dados do Firebase:', error);
     throw error;
   }
-}
+};

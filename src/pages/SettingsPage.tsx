@@ -1,21 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useGoals } from '../hooks/useDayLog';
-import { useDataSync } from '../hooks/useDataSync';
 import { getSettings, saveSettings, exportAllData, importData } from '../services/db';
 import { Download, Upload, Trash2, Save, User, FolderSync, Link as LinkIcon, Unlink, Database } from 'lucide-react';
 
 const SettingsPage: React.FC = () => {
   const { goals, saveGoals, isLoading: goalsLoading } = useGoals();
-  const { 
-    isSyncing, 
-    syncConfig, 
-    error: syncError, 
-    folderLinkInput,
-    setFolderLinkInput,
-    setFolderByLink,
-    sync, 
-    disconnect 
-  } = useDataSync();
   const [userName, setUserName] = useState('Usuário');
   const [localGoals, setLocalGoals] = useState(goals);
   const [isSaving, setIsSaving] = useState(false);
@@ -76,30 +65,6 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleSetFolderByLink = async () => {
-    const success = await setFolderByLink(folderLinkInput);
-    if (success) {
-      alert('Pasta do Google Drive configurada com sucesso!');
-      // Orienta sobre primeiros passos
-      alert('Próximos passos:\n1. Clique em "Sincronizar Agora" para exportar seus dados\n2. Faça upload do arquivo baixado para sua pasta do Google Drive\n3. No outro dispositivo, configure o mesmo link e importe o arquivo');
-    }
-  };
-
-  const handleSync = async () => {
-    try {
-      await sync();
-      // Sync já mostra alerta interno
-    } catch (err: any) {
-      alert(`Erro na sincronização: ${err.message}`);
-    }
-  };
-
-  const handleDisconnect = () => {
-    if (confirm('Deseja desconectar a pasta de sincronização? Os dados locais serão mantidos.')) {
-      disconnect();
-      alert('Pasta desconectada.');
-    }
-  };
 
   if (goalsLoading) return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando...</div>;
 
@@ -168,112 +133,6 @@ const SettingsPage: React.FC = () => {
       {/* Data Management */}
       <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '40px' }}>
         <h3 style={{ margin: '0 0 16px 0', fontSize: '1.1rem' }}>Dados e Backup</h3>
-        
-        {/* Sync Section */}
-        <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f0f9ff', borderRadius: '12px', border: '1px solid #bae6fd' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-            <div style={{ backgroundColor: '#0ea5e9', padding: '8px', borderRadius: '10px' }}>
-              <FolderSync color="#fff" size={20} />
-            </div>
-            <div>
-              <h4 style={{ margin: 0, fontSize: '1rem' }}>Sincronização com Google Drive</h4>
-              <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-                Cole o link da sua pasta do Google Drive para sincronizar os dados entre dispositivos
-              </p>
-            </div>
-          </div>
-
-          {syncError && (
-            <div style={{ padding: '10px', backgroundColor: '#fee2e2', borderRadius: '8px', marginBottom: '12px', fontSize: '0.85rem', color: '#991b1b' }}>
-              ⚠️ {syncError}
-            </div>
-          )}
-
-          {syncConfig.enabled ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ fontSize: '0.85rem', color: '#0369a1', marginBottom: '8px' }}>
-                ✓ Sincronização configurada{syncConfig.lastSync && ` • Última: ${new Date(syncConfig.lastSync).toLocaleString('pt-BR')}`}
-              </div>
-              
-              {/* Mostra link da pasta */}
-              <div style={{ fontSize: '0.75rem', color: '#64748b', wordBreak: 'break-all', backgroundColor: '#fff', padding: '8px', borderRadius: '6px', marginBottom: '8px' }}>
-                📁 {syncConfig.folderLink}
-              </div>
-              
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button 
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  style={{ 
-                    flex: 1, padding: '10px', borderRadius: '8px', border: 'none', 
-                    backgroundColor: isSyncing ? '#94a3b8' : '#0ea5e9', color: '#fff', 
-                    fontWeight: 600, cursor: isSyncing ? 'not-allowed' : 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                  }}
-                >
-                  <FolderSync size={16} className={isSyncing ? 'spin' : ''} /> 
-                  {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
-                </button>
-                <button 
-                  onClick={handleDisconnect}
-                  style={{ 
-                    padding: '10px', borderRadius: '8px', border: 'none', 
-                    backgroundColor: '#f1f5f9', color: '#64748b', 
-                    fontWeight: 600, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px'
-                  }}
-                >
-                  <Unlink size={16} /> Desconectar
-                </button>
-              </div>
-              
-              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '8px', lineHeight: '1.4' }}>
-                💡 <strong>Como usar:</strong><br/>
-                1. Clique em "Sincronizar Agora" para baixar seus dados<br/>
-                2. Faça upload do arquivo para sua pasta do Google Drive<br/>
-                3. No outro dispositivo, configure o mesmo link e importe o arquivo
-              </div>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>
-                  Link da Pasta do Google Drive
-                </label>
-                <input 
-                  type="text" 
-                  value={folderLinkInput}
-                  onChange={(e) => setFolderLinkInput(e.target.value)}
-                  placeholder="https://drive.google.com/drive/folders/..."
-                  style={{ 
-                    width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb', 
-                    fontSize: '0.9rem', boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-              <button 
-                onClick={handleSetFolderByLink}
-                disabled={!folderLinkInput.trim()}
-                style={{ 
-                  width: '100%', padding: '12px', borderRadius: '10px', border: 'none', 
-                  backgroundColor: !folderLinkInput.trim() ? '#e2e8f0' : '#0ea5e9', 
-                  color: '#fff', fontWeight: 600, 
-                  cursor: !folderLinkInput.trim() ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
-                }}
-              >
-                <LinkIcon size={18} /> Configurar Pasta
-              </button>
-              
-              <div style={{ fontSize: '0.75rem', color: '#64748b', lineHeight: '1.4' }}>
-                💡 <strong>Como obter o link:</strong><br/>
-                1. Abra o Google Drive e crie uma pasta<br/>
-                2. Clique com botão direito → "Compartilhar"<br/>
-                3. Copie o link e cole acima
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Traditional Export/Import */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
