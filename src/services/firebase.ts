@@ -53,7 +53,7 @@ const firebaseConfig = {
 
 // Inicialização do Firebase
 let app: FirebaseApp;
-let db: Firestore;
+export let db: Firestore;
 let auth: Auth;
 let currentUser: User | null = null;
 
