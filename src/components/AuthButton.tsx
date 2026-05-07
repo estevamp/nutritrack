@@ -7,7 +7,7 @@ interface AuthButtonProps {
 }
 
 const AuthButton: React.FC<AuthButtonProps> = ({ variant = 'button' }) => {
-  const [user, setUser] = useState<User | null>(getCurrentUser());
+    const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isHovering, setIsHovering] = useState(false);

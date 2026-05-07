@@ -4,7 +4,7 @@
  * Este arquivo implementa autenticação via Google OAuth2 usando Firebase Auth
  */
 
-import { auth } from './firebase';
+import { auth, initFirebase } from './firebase';
 import {
   GoogleAuthProvider,
   signInWithPopup,
@@ -19,11 +19,14 @@ const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('email');
 googleProvider.addScope('profile');
 
+initFirebase();
+
 /**
  * Faz login com conta Google
  * @returns Promise<User | null>
  */
 export const signInWithGoogle = async (): Promise<User | null> => {
+  initFirebase();
   try {
     console.log('[Google Auth] Iniciando login com Google...');
     const result = await signInWithPopup(auth, googleProvider);
@@ -47,6 +50,7 @@ export const signInWithGoogle = async (): Promise<User | null> => {
  * Faz logout do usuário
  */
 export const logout = async (): Promise<void> => {
+  initFirebase();
   try {
     console.log('[Google Auth] Fazendo logout...');
     await signOut(auth);
@@ -65,8 +69,8 @@ export const logout = async (): Promise<void> => {
 export const onAuthStateChange = (
   callback: (user: User | null) => void
 ): (() => void) => {
-  const unsubscribe = onAuthStateChanged(auth, callback);
-  return unsubscribe;
+  initFirebase();
+  return onAuthStateChanged(auth, callback);
 };
 
 /**
@@ -74,7 +78,12 @@ export const onAuthStateChange = (
  * @returns User | null
  */
 export const getCurrentUser = (): User | null => {
-  return auth.currentUser;
+  initFirebase();
+    try {
+    return auth?.currentUser ?? null;
+  } catch {
+    return null;
+  }
 };
 
 /**
@@ -82,5 +91,6 @@ export const getCurrentUser = (): User | null => {
  * @returns boolean
  */
 export const isAuthenticated = (): boolean => {
-  return auth.currentUser !== null;
+  initFirebase();
+  return auth?.currentUser != null;
 };

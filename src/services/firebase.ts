@@ -69,6 +69,14 @@ function ensureInitialized(): void {
 }
 
 /**
+ * Initializes Firebase services (app, firestore, auth).
+ * Safe to call multiple times.
+ */
+export function initFirebase(): void {
+  ensureInitialized();
+}
+
+/**
  * Ensures an authenticated user exists (anonymous auth).
  */
 export async function initializeAuth(): Promise<User> {
