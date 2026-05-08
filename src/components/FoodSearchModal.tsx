@@ -1,13 +1,16 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { FoodItem, NutrientInfo, MealEntry } from '../types';
 import { useFoodDatabase } from '../hooks/useFoodDatabase';
-import { Search, X, ChevronRight, Plus, Minus, Edit2 } from 'lucide-react';
+import type { FoodItem, NutrientInfo, MealEntry, MealType } from '../types';
+import { Search, X, ChevronRight, Plus, Minus, Edit2, Coffee, Utensils, Moon, Apple } from 'lucide-react';
 
 interface FoodSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectFood: (food: FoodItem, servings: number) => void;
   editingEntry?: MealEntry | null;
+  selectedMeal?: MealType;
+  onSelectMeal?: (meal: MealType) => void;
+  showMealSelector?: boolean;
 }
 
 const categories = [
@@ -23,7 +26,22 @@ const categories = [
   { id: 'other', label: 'Outros' },
 ];
 
-const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClose, onSelectFood, editingEntry }) => {
+const mealOptions: Array<{ id: MealType; label: string; icon: React.ComponentType<{ size?: number }> }> = [
+  { id: 'breakfast', label: 'Café da manhã', icon: Coffee },
+  { id: 'lunch', label: 'Almoço', icon: Utensils },
+  { id: 'dinner', label: 'Jantar', icon: Moon },
+  { id: 'snack', label: 'Lanche', icon: Apple },
+];
+
+const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
+  isOpen,
+  onClose,
+  onSelectFood,
+  editingEntry,
+  selectedMeal,
+  onSelectMeal,
+  showMealSelector = false,
+}) => {
   const { foods, searchFoods } = useFoodDatabase();
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -115,7 +133,7 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClose, onSe
       }}>
         {/* Header */}
         <div style={{ padding: '16px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0 }}>{editingEntry ? 'Editar Alimento' : 'Adicionar Alimento'}</h3>
+          <h3 style={{ margin: 0 }}>{editingEntry ? 'Editar refeição' : 'Cadastrar refeição'}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X /></button>
         </div>
 
@@ -123,6 +141,44 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({ isOpen, onClose, onSe
           <>
             {/* Search & Tabs */}
             <div style={{ padding: '16px' }}>
+              {showMealSelector && selectedMeal && onSelectMeal && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '8px', color: '#374151' }}>
+                    Refeição
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {mealOptions.map((meal) => {
+                      const Icon = meal.icon;
+                      const isSelected = selectedMeal === meal.id;
+
+                      return (
+                        <button
+                          key={meal.id}
+                          onClick={() => onSelectMeal(meal.id)}
+                          style={{
+                            minHeight: '44px',
+                            padding: '10px 8px',
+                            borderRadius: '10px',
+                            border: isSelected ? '1px solid #16a34a' : '1px solid #e5e7eb',
+                            backgroundColor: isSelected ? '#dcfce7' : '#fff',
+                            color: isSelected ? '#166534' : '#374151',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <Icon size={17} />
+                          <span>{meal.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               <div style={{ position: 'relative', marginBottom: '16px' }}>
                 <Search style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} size={18} />
                 <input 

@@ -15,6 +15,7 @@ const HomePage: React.FC = () => {
   const { dayLog, isLoading, addFood, removeEntry, updateEntry, totals } = useDayLog(dateStr);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeMeal, setActiveMeal] = useState<MealType>('breakfast');
+  const [showMealSelector, setShowMealSelector] = useState(false);
   const [editingEntry, setEditingEntry] = useState<MealEntry | null>(null);
 
   const handlePrevDay = () => setSelectedDate(subDays(selectedDate, 1));
@@ -23,11 +24,21 @@ const HomePage: React.FC = () => {
   const openSearch = (meal: MealType) => {
     setActiveMeal(meal);
     setEditingEntry(null);
+    setShowMealSelector(false);
     setIsSearchOpen(true);
   };
 
-  const handleEdit = (entry: MealEntry) => {
+  const openMealRegistration = () => {
+    setActiveMeal('breakfast');
+    setEditingEntry(null);
+    setShowMealSelector(true);
+    setIsSearchOpen(true);
+  };
+
+  const handleEdit = (meal: MealType, entry: MealEntry) => {
+    setActiveMeal(meal);
     setEditingEntry(entry);
+    setShowMealSelector(false);
     setIsSearchOpen(true);
   };
 
@@ -75,35 +86,35 @@ const HomePage: React.FC = () => {
           entries={dayLog?.meals.breakfast || []} 
           onAdd={() => openSearch('breakfast')} 
           onRemove={(id) => removeEntry('breakfast', id)} 
-          onEdit={handleEdit}
+          onEdit={(entry) => handleEdit('breakfast', entry)}
         />
         <MealSection 
           mealType="lunch" 
           entries={dayLog?.meals.lunch || []} 
           onAdd={() => openSearch('lunch')} 
           onRemove={(id) => removeEntry('lunch', id)} 
-          onEdit={handleEdit}
+          onEdit={(entry) => handleEdit('lunch', entry)}
         />
         <MealSection 
           mealType="dinner" 
           entries={dayLog?.meals.dinner || []} 
           onAdd={() => openSearch('dinner')} 
           onRemove={(id) => removeEntry('dinner', id)} 
-          onEdit={handleEdit}
+          onEdit={(entry) => handleEdit('dinner', entry)}
         />
         <MealSection 
           mealType="snack" 
           entries={dayLog?.meals.snack || []} 
           onAdd={() => openSearch('snack')} 
           onRemove={(id) => removeEntry('snack', id)} 
-          onEdit={handleEdit}
+          onEdit={(entry) => handleEdit('snack', entry)}
         />
       </div>
 
-      {/* FAB for quick add to snack */}
+      {/* FAB for registering a meal */}
       <button 
-        onClick={() => openSearch('snack')}
-        aria-label="Adicionar lanche rápido"
+        onClick={openMealRegistration}
+        aria-label="Cadastrar refeição"
         style={{
           position: 'fixed',
           bottom: '80px',
@@ -130,9 +141,13 @@ const HomePage: React.FC = () => {
         onClose={() => {
           setIsSearchOpen(false);
           setEditingEntry(null);
+          setShowMealSelector(false);
         }} 
         onSelectFood={handleSelectFood} 
         editingEntry={editingEntry}
+        selectedMeal={activeMeal}
+        onSelectMeal={setActiveMeal}
+        showMealSelector={showMealSelector}
       />
     </div>
   );
