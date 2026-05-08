@@ -1,9 +1,26 @@
 import React from 'react';
-import type { FoodLookupDraft } from '../services/foodLookup';
+
+export interface FoodSuggestionItem {
+  name: string;
+  brand?: string;
+  category: string;
+  servingLabel: string;
+  nutrients: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    sugar: number;
+    fat: number;
+    saturatedFat: number;
+    fiber: number;
+    sodium: number;
+  };
+  displayLabel: string;
+}
 
 interface FoodSuggestionListProps {
-  suggestions: Array<FoodLookupDraft & { displayLabel: string }>;
-  onSelect: (item: FoodLookupDraft) => void;
+  suggestions: FoodSuggestionItem[];
+  onSelect: (item: FoodSuggestionItem) => void;
 }
 
 const FoodSuggestionList: React.FC<FoodSuggestionListProps> = ({ suggestions, onSelect }) => {
