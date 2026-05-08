@@ -1,5 +1,5 @@
 const OPEN_FOOD_FACTS_BASE_URL = 'https://world.openfoodfacts.org/api/v2/product';
-const APP_USER_AGENT = 'NutriTrack/1.0 (nutritrack@example.com)';
+const APP_USER_AGENT =  'NutriTrack - Calorie App - https://nutritrack-silk.vercel.app - estevamp@gmail.com';
 
 const requestedFields = [
   'code',
