@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { FoodItem, NutrientInfo } from '../types';
-import { X } from 'lucide-react';
+import { X, Sparkles, Loader2 } from 'lucide-react';
+import { searchFoodByName, type FoodSearchResult } from '../services/foodSearch';
+import FoodSuggestionList from './FoodSuggestionList';
 
 type FoodCategory = FoodItem['category'];
 
@@ -24,6 +26,58 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
     fiber: 0,
     sodium: 0
   });
+  const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const nameInputRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (nameInputRef.current && !nameInputRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    }
+
+    if (showSuggestions) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSuggestions]);
+
+  const handleSearch = async () => {
+    if (name.trim().length < 3) return;
+
+    setIsSearching(true);
+    setSearchError(null);
+    setShowSuggestions(true);
+
+    try {
+      const results = await searchFoodByName(name);
+      setSearchResults(results);
+      if (results.length === 0) {
+        setSearchError('Nenhum resultado. Preencha manualmente.');
+      }
+    } catch (error) {
+      setSearchError('Não foi possível buscar. Tente novamente.');
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleSelectSuggestion = (item: FoodSearchResult) => {
+    setName(item.name);
+    setCategory(item.category);
+    setServingLabel(item.servingLabel);
+    setNutrients(item.nutrients);
+    setShowSuggestions(false);
+    setSearchResults([]);
+    setSearchError(null);
+  };
 
   if (!isOpen) return null;
 
@@ -76,13 +130,48 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
         <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Novo Alimento</h3>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div>
+          <div ref={nameInputRef} style={{ position: 'relative' }}>
             <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', fontWeight: 600 }}>Nome</label>
-            <input 
-              type="text" required value={name} onChange={e => setName(e.target.value)}
-              placeholder="Ex: Whey Protein Morango"
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input 
+                type="text" required value={name} onChange={e => setName(e.target.value)}
+                placeholder="Ex: Whey Protein Morango"
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
+              />
+              <button
+                type="button"
+                onClick={handleSearch}
+                disabled={name.trim().length < 3 || isSearching}
+                style={{
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: name.trim().length < 3 || isSearching ? '#d1d5db' : '#16a34a',
+                  color: '#fff',
+                  cursor: name.trim().length < 3 || isSearching ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {isSearching ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <Sparkles size={18} />
+                )}
+              </button>
+            </div>
+            {showSuggestions && searchResults.length > 0 && (
+              <FoodSuggestionList
+                suggestions={searchResults}
+                onSelect={handleSelectSuggestion}
+              />
+            )}
+            {searchError && (
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '4px', marginBottom: 0 }}>
+                {searchError}
+              </p>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
