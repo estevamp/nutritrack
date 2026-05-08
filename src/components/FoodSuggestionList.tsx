@@ -1,27 +1,5 @@
 import React from 'react';
-
-export interface FoodSearchResult {
-  name: string;
-  brand?: string;
-  category: string;
-
-  servingLabel: string;
-  servingSize: number;
-  servingUnit: string;
-
-  nutrients: {
-    calories: number;
-    protein: number;
-    carbs: number;
-    sugar: number;
-    fat: number;
-    saturatedFat: number;
-    fiber: number;
-    sodium: number;
-  };
-
-  displayLabel: string;
-}
+import type { FoodSearchResult } from '../services/foodSearch';
 
 interface FoodSuggestionListProps {
   suggestions: FoodSearchResult[];
