@@ -7,7 +7,7 @@ type FoodCategory = FoodItem['category'];
 interface AddCustomFoodModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (food: Omit<FoodItem, 'id' | 'isCustom'>) => void;
+  onAdd: (food: Omit<FoodItem, 'id' | 'isCustom'>) => void | Promise<FoodItem | void>;
 }
 
 const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose, onAdd }) => {

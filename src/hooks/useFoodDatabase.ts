@@ -70,13 +70,13 @@ export function useFoodDatabase() {
     });
   }, [foods]);
 
-  const addCustomFood = async (foodData: Omit<FoodItem, 'id' | 'isCustom'>) => {
+  const addCustomFood = async (foodData: Omit<FoodItem, 'id' | 'isCustom'>): Promise<FoodItem | undefined> => {
     try {
       if (!user) return;
       const userId = user.uid;
       const foodsRef = collection(db, FOODS_COLLECTION);
       
-      await addDoc(foodsRef, {
+      const docRef = await addDoc(foodsRef, {
         ...foodData,
         userId,
         isCustom: true,
@@ -84,6 +84,11 @@ export function useFoodDatabase() {
       });
       
       await refreshFoods();
+      return {
+        ...foodData,
+        id: docRef.id,
+        isCustom: true,
+      };
     } catch (error) {
       console.error('Erro ao adicionar alimento customizado:', error);
       throw error;

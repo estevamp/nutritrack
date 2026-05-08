@@ -1,11 +1,43 @@
 import { defineConfig } from 'vite'
+import type { ViteDevServer } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+
+function foodLookupDevApi() {
+  return {
+    name: 'food-lookup-dev-api',
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use('/api/food-lookup', async (req, res) => {
+        const url = new URL(req.url ?? '', 'http://localhost');
+        // @ts-expect-error Vercel function is plain JS so it can run without a build step.
+        const { default: handler } = await import('./api/food-lookup.js');
+        const apiReq = {
+          method: req.method,
+          query: Object.fromEntries(url.searchParams.entries()),
+        };
+        const apiRes = {
+          setHeader: (name: string, value: string) => res.setHeader(name, value),
+          status: (code: number) => {
+            res.statusCode = code;
+            return apiRes;
+          },
+          json: (payload: unknown) => {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(payload));
+          },
+        };
+
+        await handler(apiReq, apiRes);
+      });
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
+    foodLookupDevApi(),
     VitePWA({
       strategies: 'injectManifest',
       injectManifest: {

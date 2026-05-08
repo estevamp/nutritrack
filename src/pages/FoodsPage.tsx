@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { useFoodDatabase } from '../hooks/useFoodDatabase';
-import { Search, Plus, Trash2, Info } from 'lucide-react';
+import { Barcode, Search, Plus, Trash2, Info } from 'lucide-react';
 import AddCustomFoodModal from '../components/AddCustomFoodModal';
+import FoodCodeScannerModal from '../components/FoodCodeScannerModal';
 
 const categories = [
   { id: 'all', label: 'Todos' },
@@ -21,6 +22,7 @@ const FoodsPage: React.FC = () => {
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   const filteredFoods = useMemo(() => {
     let results = query ? searchFoods(query) : foods;
@@ -36,16 +38,29 @@ const FoodsPage: React.FC = () => {
     <div className="page-container" style={{ padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ margin: 0 }}>Alimentos</h2>
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          style={{ 
-            backgroundColor: '#16a34a', color: '#fff', border: 'none', 
-            padding: '8px 16px', borderRadius: '12px', fontWeight: 600,
-            display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer'
-          }}
-        >
-          <Plus size={18} /> Novo
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            onClick={() => setIsScannerOpen(true)}
+            aria-label="Escanear alimento"
+            style={{ 
+              backgroundColor: '#f3f4f6', color: '#374151', border: 'none', 
+              width: '40px', height: '40px', borderRadius: '12px', fontWeight: 600,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer'
+            }}
+          >
+            <Barcode size={18} />
+          </button>
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            style={{ 
+              backgroundColor: '#16a34a', color: '#fff', border: 'none', 
+              padding: '8px 16px', borderRadius: '12px', fontWeight: 600,
+              display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer'
+            }}
+          >
+            <Plus size={18} /> Novo
+          </button>
+        </div>
       </div>
 
       <div style={{ position: 'relative', marginBottom: '16px' }}>
@@ -119,6 +134,12 @@ const FoodsPage: React.FC = () => {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         onAdd={addCustomFood} 
+      />
+
+      <FoodCodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onSave={addCustomFood}
       />
     </div>
   );

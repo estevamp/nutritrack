@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFoodDatabase } from '../hooks/useFoodDatabase';
 import type { FoodItem, NutrientInfo, MealEntry, MealType } from '../types';
-import { Search, X, ChevronRight, Plus, Minus, Edit2, Coffee, Utensils, Moon, Apple } from 'lucide-react';
+import { Barcode, Search, X, ChevronRight, Plus, Minus, Edit2, Coffee, Utensils, Moon, Apple } from 'lucide-react';
+import FoodCodeScannerModal from './FoodCodeScannerModal';
 
 interface FoodSearchModalProps {
   isOpen: boolean;
@@ -42,12 +43,13 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
   onSelectMeal,
   showMealSelector = false,
 }) => {
-  const { foods, searchFoods } = useFoodDatabase();
+  const { foods, searchFoods, addCustomFood } = useFoodDatabase();
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedFood, setSelectedFood] = useState<FoodItem | null>(null);
   const [servings, setServings] = useState(1);
   const [activeTab, setActiveTab] = useState<'all' | 'custom'>('all');
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
 
   // When editing an entry, pre-populate the modal with the food and servings
   useEffect(() => {
@@ -188,12 +190,36 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
                   onChange={(e) => setQuery(e.target.value)}
                   style={{ 
                     width: '100%', 
-                    padding: '12px 12px 12px 40px', 
+                    padding: editingEntry ? '12px 12px 12px 40px' : '12px 48px 12px 40px', 
                     borderRadius: '12px', 
                     border: '1px solid #e5e7eb',
                     fontSize: '1rem'
                   }}
                 />
+                {!editingEntry && (
+                  <button
+                    onClick={() => setIsScannerOpen(true)}
+                    aria-label="Escanear alimento"
+                    style={{
+                      position: 'absolute',
+                      right: '6px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      backgroundColor: '#f3f4f6',
+                      color: '#374151',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Barcode size={18} />
+                  </button>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
@@ -328,7 +354,20 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
             </div>
           </div>
         )}
+
       </div>
+      <FoodCodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onSave={addCustomFood}
+        onSaved={(food) => {
+          onSelectFood(food, 1);
+          setSelectedFood(null);
+          setQuery('');
+          onClose();
+        }}
+        submitLabel="Salvar e adicionar"
+      />
     </div>
   );
 };
