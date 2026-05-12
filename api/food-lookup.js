@@ -152,6 +152,10 @@ export default async function handler(request, response) {
       return;
     }
 
+    response.setHeader(
+      'Cache-Control',
+      's-maxage=86400, stale-while-revalidate=3600'
+    );    
     response.status(200).json({ code, ...normalized });
   } catch (error) {
     console.error('[food-lookup] lookup failed', error);

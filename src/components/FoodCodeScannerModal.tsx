@@ -3,6 +3,7 @@ import { BrowserMultiFormatReader, type IScannerControls } from '@zxing/browser'
 import { Barcode, Camera, Check, Loader2, RotateCcw, Save, Search, X } from 'lucide-react';
 import type { FoodItem, NutrientInfo } from '../types';
 import { extractBarcode, lookupFoodByBarcode, type FoodLookupDraft } from '../services/foodLookup';
+import NutritionCameraModal, { type ExtractedNutrition } from './NutritionCameraModal';
 
 type FoodCategory = FoodItem['category'];
 
@@ -91,6 +92,7 @@ const FoodCodeScannerModal: React.FC<FoodCodeScannerModalProps> = ({
   const [manualCode, setManualCode] = useState('');
   const [error, setError] = useState('');
   const [draft, setDraft] = useState<FoodLookupDraft | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
 
   const hasDraft = Boolean(draft);
 
@@ -226,6 +228,31 @@ const FoodCodeScannerModal: React.FC<FoodCodeScannerModalProps> = ({
         nutrients: {
           ...current.nutrients,
           [key]: parsed,
+        },
+      };
+    });
+  };
+
+const handleExtractedNutrition = ( ExtractedNutrition) => {
+    setDraft((current) => {
+      if (!current) return current;
+
+      // Fazer merge: preservar name, brand, category do draft existente
+      // e sobrescrever apenas os campos nutricionais
+      return {
+        ...current,
+        servingSize: data.servingSize,
+        servingUnit: data.servingUnit,
+        servingLabel: data.servingLabel,
+        nutrients: {
+          calories: data.calories,
+          protein: data.protein,
+          carbs: data.carbs,
+          sugar: data.sugar,
+          fat: data.fat,
+          saturatedFat: data.saturatedFat,
+          fiber: data.fiber,
+          sodium: data.sodium,
         },
       };
     });
@@ -453,6 +480,28 @@ const FoodCodeScannerModal: React.FC<FoodCodeScannerModalProps> = ({
               </div>
             )}
 
+            <button
+              type="button"
+              onClick={() => setIsCameraOpen(true)}
+              style={{
+                width: '100%',
+                padding: '13px',
+                borderRadius: '12px',
+                border: '1px dashed #16a34a',
+                background: '#f0fdf4',
+                color: '#16a34a',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+              }}
+            >
+              <Camera size={18} />
+              Completar com foto da tabela
+            </button>
+
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
                 type="button"
@@ -499,6 +548,11 @@ const FoodCodeScannerModal: React.FC<FoodCodeScannerModalProps> = ({
           </form>
         )}
       </div>
+      <NutritionCameraModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onExtracted={handleExtractedNutrition}
+      />      
     </div>
   );
 };
