@@ -39,6 +39,10 @@ Field descriptions:
 - fiber: in grams
 - sodium: in mg (convert from g if needed)`;
 
+function normalizeBase64Image(imageBase64) {
+  return imageBase64.replace(/^data:image\/[^;]+;base64,/, '');
+}
+
 export default async function handler(request, response) {
   // Set CORS headers
   response.setHeader('Access-Control-Allow-Origin', '*');
@@ -93,7 +97,7 @@ export default async function handler(request, response) {
           {
             inline_data: {
               mime_type: imageMimeType,
-              data: imageBase64.replace(/^image\/[^;]+;base64,/, '')
+              data: normalizeBase64Image(imageBase64)
             }
           }
         ]

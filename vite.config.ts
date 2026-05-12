@@ -63,12 +63,57 @@ function foodSearchDevApi() {
   };
 }
 
+function nutritionOcrDevApi() {
+  return {
+    name: 'nutrition-ocr-dev-api',
+    configureServer(server: ViteDevServer) {
+      server.middlewares.use('/api/nutrition-ocr', async (req, res) => {
+        const chunks: Buffer[] = [];
+
+        for await (const chunk of req) {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        }
+
+        const rawBody = Buffer.concat(chunks).toString('utf8');
+        let body = {};
+
+        try {
+          body = rawBody ? JSON.parse(rawBody) : {};
+        } catch {
+          res.statusCode = 400;
+          res.setHeader('Content-Type', 'application/json');
+          res.end(JSON.stringify({ error: 'invalid_json', message: 'JSON inválido.' }));
+          return;
+        }
+
+        // @ts-expect-error Vercel function is plain JS so it can run without a build step.
+        const { default: handler } = await import('./api/nutrition-ocr.js');
+        const apiRes = {
+          setHeader: (name: string, value: string) => res.setHeader(name, value),
+          status: (code: number) => {
+            res.statusCode = code;
+            return apiRes;
+          },
+          json: (payload: unknown) => {
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(payload));
+          },
+          end: () => res.end(),
+        };
+
+        await handler({ method: req.method, body }, apiRes);
+      });
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     foodLookupDevApi(),
     foodSearchDevApi(),
+    nutritionOcrDevApi(),
     VitePWA({
       strategies: 'injectManifest',
       injectManifest: {

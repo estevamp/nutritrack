@@ -164,10 +164,10 @@ const NutritionCameraModal: React.FC<NutritionCameraModalProps> = ({
         }),
       });
 
-      const result = await response.json();
+      const result = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error(result.message || 'Erro ao analisar imagem');
+        throw new Error(result?.message || 'Erro ao analisar imagem');
       }
 
       onExtracted(result);
