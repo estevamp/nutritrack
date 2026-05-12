@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { FoodItem, NutrientInfo } from '../types';
-import { X, Sparkles, Loader2 } from 'lucide-react';
+import { X, Sparkles, Loader2, Camera} from 'lucide-react';
 import { searchFoodByName, type FoodSearchResult } from '../services/foodSearch';
 import FoodSuggestionList from './FoodSuggestionList';
+import NutritionCameraModal, { type ExtractedNutrition } from './NutritionCameraModal';
 
 type FoodCategory = FoodItem['category'];
 
@@ -30,6 +31,7 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
   const nameInputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -114,6 +116,29 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
     setNutrients(prev => ({ ...prev, [key]: numValue }));
   };
 
+  const handleExtractedNutrition = (data: ExtractedNutrition) => {
+    // Preencher todos os campos nutricionais
+    setNutrients({
+      calories: data.calories ?? 0,
+      protein: data.protein ?? 0,
+      carbs: data.carbs ?? 0,
+      sugar: data.sugar ?? 0,
+      fat: data.fat ?? 0,
+      saturatedFat: data.saturatedFat ?? 0,
+      fiber: data.fiber ?? 0,
+      sodium: data.sodium ?? 0,
+    });
+
+    // Preencher servingLabel e dados de porção
+    setServingLabel(data.servingLabel);
+
+    // Preencher nome se vier da IA e o campo estiver vazio
+    if (data.name && !name) {
+      setName(data.name);
+    }
+  };
+
+
   return (
     <div className="modal-overlay" style={{
       position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -161,6 +186,28 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
                 )}
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => setIsCameraOpen(true)}
+              style={{
+                marginTop: '8px',
+                width: '100%',
+                padding: '10px',
+                borderRadius: '8px',
+                border: '1px dashed #16a34a',
+                background: '#f0fdf4',
+                color: '#16a34a',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontWeight: 500,
+              }}
+            >
+              <Camera size={18} />
+              Fotografar Tabela Nutricional
+            </button>
             {showSuggestions && searchResults.length > 0 && (
               <FoodSuggestionList
                 suggestions={searchResults}
@@ -239,6 +286,12 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
           </button>
         </form>
       </div>
+
+      <NutritionCameraModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onExtracted={handleExtractedNutrition}
+      />      
     </div>
   );
 };
