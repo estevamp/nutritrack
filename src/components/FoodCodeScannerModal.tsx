@@ -233,7 +233,7 @@ const FoodCodeScannerModal: React.FC<FoodCodeScannerModalProps> = ({
     });
   };
 
-const handleExtractedNutrition = ( ExtractedNutrition) => {
+const handleExtractedNutrition = ( data: ExtractedNutrition) => {
     setDraft((current) => {
       if (!current) return current;
 
@@ -241,18 +241,18 @@ const handleExtractedNutrition = ( ExtractedNutrition) => {
       // e sobrescrever apenas os campos nutricionais
       return {
         ...current,
-        servingSize: data.servingSize,
-        servingUnit: data.servingUnit,
+        servingSize: data.servingSize ?? undefined,
+        servingUnit: data.servingUnit ?? undefined,
         servingLabel: data.servingLabel,
         nutrients: {
-          calories: data.calories,
-          protein: data.protein,
-          carbs: data.carbs,
-          sugar: data.sugar,
-          fat: data.fat,
-          saturatedFat: data.saturatedFat,
-          fiber: data.fiber,
-          sodium: data.sodium,
+          calories: data.calories ?? 0,
+          protein: data.protein ?? 0,
+          carbs: data.carbs ?? 0,
+          sugar: data.sugar ?? 0,
+          fat: data.fat ?? 0,
+          saturatedFat: data.saturatedFat ?? 0,
+          fiber: data.fiber ?? 0,
+          sodium: data.sodium ?? 0,
         },
       };
     });
