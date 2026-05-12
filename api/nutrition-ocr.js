@@ -91,9 +91,9 @@ export default async function handler(request, response) {
         parts: [
           { text: OCR_PROMPT },
           {
-            inline_ {
+            inline_data: {
               mime_type: imageMimeType,
-               imageBase64.replace(/^image\/[^;]+;base64,/, '')
+              data: imageBase64.replace(/^image\/[^;]+;base64,/, '')
             }
           }
         ]
