@@ -107,8 +107,8 @@ const HistoryPage: React.FC = () => {
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '24px' 
       }}>
         <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#6b7280' }}>Calorias (Últimos 7 dias)</h4>
-        <div style={{ width: '100%', height: 200 }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <div style={{ width: '100%', minWidth: 0, height: 200, minHeight: 200 }}>
+          <ResponsiveContainer width="100%" height={200} minWidth={0} debounce={50}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
               <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
