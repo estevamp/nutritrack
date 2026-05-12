@@ -19,7 +19,7 @@ export interface ExtractedNutrition {
 interface NutritionCameraModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onExtracted: ( ExtractedNutrition) => void;
+  onExtracted: ( data: ExtractedNutrition) => void;
 }
 
 type ModalState = 'idle' | 'capturing' | 'captured' | 'analyzing' | 'done' | 'error';
