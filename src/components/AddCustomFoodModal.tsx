@@ -6,6 +6,7 @@ import FoodSuggestionList from './FoodSuggestionList';
 import NutritionCameraModal, { type ExtractedNutrition } from './NutritionCameraModal';
 
 type FoodCategory = FoodItem['category'];
+type NutrientKey = keyof NutrientInfo;
 
 interface AddCustomFoodModalProps {
   isOpen: boolean;
@@ -14,10 +15,7 @@ interface AddCustomFoodModalProps {
 }
 
 const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose, onAdd }) => {
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<FoodCategory>('other');
-  const [servingLabel, setServingLabel] = useState('100g');
-  const [nutrients, setNutrients] = useState<NutrientInfo>({
+  const initialNutrients: NutrientInfo = {
     calories: 0,
     protein: 0,
     carbs: 0,
@@ -26,7 +24,19 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
     saturatedFat: 0,
     fiber: 0,
     sodium: 0
-  });
+  };
+  const formatNutrientInputs = (values: NutrientInfo): Record<NutrientKey, string> =>
+    Object.fromEntries(
+      (Object.keys(values) as NutrientKey[]).map(key => [key, String(values[key])])
+    ) as Record<NutrientKey, string>;
+
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState<FoodCategory>('other');
+  const [servingLabel, setServingLabel] = useState('100g');
+  const [nutrients, setNutrients] = useState<NutrientInfo>(initialNutrients);
+  const [nutrientInputs, setNutrientInputs] = useState<Record<NutrientKey, string>>(
+    formatNutrientInputs(initialNutrients)
+  );
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -63,7 +73,7 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
       if (results.length === 0) {
         setSearchError('Nenhum resultado. Preencha manualmente.');
       }
-    } catch (error) {
+    } catch {
       setSearchError('Não foi possível buscar. Tente novamente.');
       setSearchResults([]);
     } finally {
@@ -76,6 +86,7 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
     setCategory(item.category);
     setServingLabel(item.servingLabel);
     setNutrients(item.nutrients);
+    setNutrientInputs(formatNutrientInputs(item.nutrients));
     setShowSuggestions(false);
     setSearchResults([]);
     setSearchError(null);
@@ -98,27 +109,23 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
 
     // Reset form
     setName('');
-    setNutrients({
-      calories: 0,
-      protein: 0,
-      carbs: 0,
-      sugar: 0,
-      fat: 0,
-      saturatedFat: 0,
-      fiber: 0,
-      sodium: 0
-    });
+    setNutrients(initialNutrients);
+    setNutrientInputs(formatNutrientInputs(initialNutrients));
     onClose();
   };
 
-  const handleNutrientChange = (key: keyof NutrientInfo, value: string) => {
-    const numValue = parseFloat(value) || 0;
+  const handleNutrientChange = (key: NutrientKey, value: string) => {
+    if (!/^\d*([.,]\d*)?$/.test(value)) return;
+
+    const normalizedValue = value.replace(',', '.');
+    const numValue = parseFloat(normalizedValue) || 0;
+    setNutrientInputs(prev => ({ ...prev, [key]: value }));
     setNutrients(prev => ({ ...prev, [key]: numValue }));
   };
 
   const handleExtractedNutrition = (data: ExtractedNutrition) => {
     // Preencher todos os campos nutricionais
-    setNutrients({
+    const extractedNutrients = {
       calories: data.calories ?? 0,
       protein: data.protein ?? 0,
       carbs: data.carbs ?? 0,
@@ -127,7 +134,10 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
       saturatedFat: data.saturatedFat ?? 0,
       fiber: data.fiber ?? 0,
       sodium: data.sodium ?? 0,
-    });
+    };
+
+    setNutrients(extractedNutrients);
+    setNutrientInputs(formatNutrientInputs(extractedNutrients));
 
     // Preencher servingLabel e dados de porção
     setServingLabel(data.servingLabel);
@@ -265,9 +275,11 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
                 <div key={nut.key}>
                   <label style={{ display: 'block', fontSize: '0.75rem', marginBottom: '2px' }}>{nut.label}</label>
                   <input 
-                    type="number" step="0.1" min="0"
-                    value={nutrients[nut.key as keyof NutrientInfo]}
-                    onChange={e => handleNutrientChange(nut.key as keyof NutrientInfo, e.target.value)}
+                    type="text"
+                    inputMode="decimal"
+                    pattern="[0-9]*[.,]?[0-9]*"
+                    value={nutrientInputs[nut.key as NutrientKey]}
+                    onChange={e => handleNutrientChange(nut.key as NutrientKey, e.target.value)}
                     style={{ width: '100%', padding: '8px', borderRadius: '8px', border: '1px solid #e5e7eb' }}
                   />
                 </div>

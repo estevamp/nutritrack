@@ -84,15 +84,16 @@ const MealSection: React.FC<MealSectionProps> = ({ mealType, entries, onAdd, onR
                 justifyContent: 'space-between', 
                 alignItems: 'center', 
                 padding: '8px 0',
-                borderTop: '1px solid #f3f4f6'
+                borderTop: '1px solid #f3f4f6',
+                minWidth: 0
               }}>
-                <div style={{ flex: 1 }} onClick={() => onEdit(entry)} role="button" tabIndex={0}>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{entry.foodName}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                <div style={{ flex: 1, minWidth: 0 }} onClick={() => onEdit(entry)} role="button" tabIndex={0}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 500, overflowWrap: 'anywhere' }}>{entry.foodName}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#6b7280', overflowWrap: 'anywhere' }}>
                     {entry.servingsConsumed} porção(ões) • {entry.nutrients.calories} kcal
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '4px' }}>
+                <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                   <button 
                     onClick={() => onEdit(entry)}
                     aria-label={`Editar ${entry.foodName}`}
