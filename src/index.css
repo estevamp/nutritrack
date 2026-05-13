@@ -105,6 +105,7 @@ nav {
 /* Inputs */
 input, select {
   font-family: var(--font-main);
+  font-size: 16px;
   outline: none;
 }
 
