@@ -34,6 +34,9 @@ const mealOptions: Array<{ id: MealType; label: string; icon: React.ComponentTyp
   { id: 'snack', label: 'Lanche', icon: Apple },
 ];
 
+const SERVING_STEP = 0.25;
+const MIN_SERVINGS = 0.25;
+
 const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
   isOpen,
   onClose,
@@ -303,7 +306,7 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
 
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '24px' }}>
               <button 
-                onClick={() => setServings(Math.max(0.5, servings - 0.5))}
+                onClick={() => setServings(Math.max(MIN_SERVINGS, servings - SERVING_STEP))}
                 style={{ width: '48px', height: '48px', borderRadius: '50%', border: '1px solid #e5e7eb', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <Minus />
@@ -313,7 +316,7 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
                 <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>porções</div>
               </div>
               <button 
-                onClick={() => setServings(servings + 0.5)}
+                onClick={() => setServings(servings + SERVING_STEP)}
                 style={{ width: '48px', height: '48px', borderRadius: '50%', border: '1px solid #e5e7eb', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <Plus />
