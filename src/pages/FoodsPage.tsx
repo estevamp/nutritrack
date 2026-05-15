@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useFoodDatabase } from '../hooks/useFoodDatabase';
-import { Barcode, Search, Plus, Trash2, Info } from 'lucide-react';
+import { Barcode, Search, Plus, Trash2, Pencil } from 'lucide-react';
 import AddCustomFoodModal from '../components/AddCustomFoodModal';
 import FoodCodeScannerModal from '../components/FoodCodeScannerModal';
+import type { FoodItem } from '../types';
 
 const categories = [
   { id: 'all', label: 'Todos' },
@@ -18,19 +19,27 @@ const categories = [
 ];
 
 const FoodsPage: React.FC = () => {
-  const { foods, isLoading, addCustomFood, deleteCustomFood, searchFoods } = useFoodDatabase();
+  const { foods, isLoading, addCustomFood, updateFood, deleteFood, searchFoods } = useFoodDatabase();
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [editingFood, setEditingFood] = useState<FoodItem | null>(null);
 
   const filteredFoods = useMemo(() => {
     let results = query ? searchFoods(query) : foods;
     if (selectedCategory !== 'all') {
       results = results.filter(f => f.category === selectedCategory);
     }
-    return results.sort((a, b) => a.name.localeCompare(b.name));
+    return [...results].sort((a, b) => a.name.localeCompare(b.name));
   }, [query, selectedCategory, foods, searchFoods]);
+
+  const handleDeleteFood = async (food: FoodItem) => {
+    const shouldDelete = confirm(`Excluir "${food.name}" da base de alimentos?`);
+    if (!shouldDelete) return;
+
+    await deleteFood(food.id);
+  };
 
   if (isLoading) return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando...</div>;
 
@@ -51,7 +60,10 @@ const FoodsPage: React.FC = () => {
             <Barcode size={18} />
           </button>
           <button 
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setEditingFood(null);
+              setIsAddModalOpen(true);
+            }}
             style={{ 
               backgroundColor: '#16a34a', color: '#fff', border: 'none', 
               padding: '8px 16px', borderRadius: '12px', fontWeight: 600,
@@ -115,26 +127,41 @@ const FoodsPage: React.FC = () => {
               </div>
             </div>
             
-            {food.isCustom ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                onClick={() => {
+                  setEditingFood(food);
+                  setIsAddModalOpen(true);
+                }}
+                aria-label={`Editar ${food.name}`}
+                style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', padding: '8px' }}
+              >
+                <Pencil size={18} />
+              </button>
               <button 
-                onClick={() => deleteCustomFood(food.id)}
+                onClick={() => handleDeleteFood(food)}
                 aria-label={`Excluir ${food.name}`}
                 style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '8px' }}
               >
                 <Trash2 size={18} />
               </button>
-            ) : (
-              <div style={{ color: '#9ca3af', padding: '8px' }}><Info size={18} /></div>
-            )}
+            </div>
           </div>
         ))}
       </div>
 
-      <AddCustomFoodModal 
-        isOpen={isAddModalOpen} 
-        onClose={() => setIsAddModalOpen(false)} 
-        onAdd={addCustomFood} 
-      />
+      {isAddModalOpen && (
+        <AddCustomFoodModal 
+          isOpen={isAddModalOpen} 
+          onClose={() => {
+            setIsAddModalOpen(false);
+            setEditingFood(null);
+          }} 
+          onAdd={addCustomFood} 
+          initialFood={editingFood}
+          onUpdate={updateFood}
+        />
+      )}
 
       <FoodCodeScannerModal
         isOpen={isScannerOpen}

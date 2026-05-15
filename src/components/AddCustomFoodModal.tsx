@@ -12,30 +12,33 @@ interface AddCustomFoodModalProps {
   isOpen: boolean;
   onClose: () => void;
   onAdd: (food: Omit<FoodItem, 'id' | 'isCustom'>) => void | Promise<FoodItem | void>;
+  initialFood?: FoodItem | null;
+  onUpdate?: (food: FoodItem) => void | Promise<void>;
 }
 
-const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose, onAdd }) => {
-  const initialNutrients: NutrientInfo = {
-    calories: 0,
-    protein: 0,
-    carbs: 0,
-    sugar: 0,
-    fat: 0,
-    saturatedFat: 0,
-    fiber: 0,
-    sodium: 0
-  };
-  const formatNutrientInputs = (values: NutrientInfo): Record<NutrientKey, string> =>
-    Object.fromEntries(
-      (Object.keys(values) as NutrientKey[]).map(key => [key, String(values[key])])
-    ) as Record<NutrientKey, string>;
+const initialNutrients: NutrientInfo = {
+  calories: 0,
+  protein: 0,
+  carbs: 0,
+  sugar: 0,
+  fat: 0,
+  saturatedFat: 0,
+  fiber: 0,
+  sodium: 0
+};
 
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<FoodCategory>('other');
-  const [servingLabel, setServingLabel] = useState('100g');
-  const [nutrients, setNutrients] = useState<NutrientInfo>(initialNutrients);
+const formatNutrientInputs = (values: NutrientInfo): Record<NutrientKey, string> =>
+  Object.fromEntries(
+    (Object.keys(values) as NutrientKey[]).map(key => [key, String(values[key])])
+  ) as Record<NutrientKey, string>;
+
+const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose, onAdd, initialFood, onUpdate }) => {
+  const [name, setName] = useState(() => initialFood?.name ?? '');
+  const [category, setCategory] = useState<FoodCategory>(() => initialFood?.category ?? 'other');
+  const [servingLabel, setServingLabel] = useState(() => initialFood?.servingLabel ?? '100g');
+  const [nutrients, setNutrients] = useState<NutrientInfo>(() => initialFood?.nutrients ?? initialNutrients);
   const [nutrientInputs, setNutrientInputs] = useState<Record<NutrientKey, string>>(
-    formatNutrientInputs(initialNutrients)
+    () => formatNutrientInputs(initialFood?.nutrients ?? initialNutrients)
   );
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -43,6 +46,18 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const nameInputRef = useRef<HTMLDivElement>(null);
+  const isEditing = Boolean(initialFood);
+
+  const resetForm = () => {
+    setName('');
+    setCategory('other');
+    setServingLabel('100g');
+    setNutrients(initialNutrients);
+    setNutrientInputs(formatNutrientInputs(initialNutrients));
+    setSearchResults([]);
+    setShowSuggestions(false);
+    setSearchError(null);
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -94,23 +109,29 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
 
-    onAdd({
+    const foodData = {
       name,
       category,
-      servingSize: 100, // Default base
-      servingUnit: 'g',
+      servingSize: initialFood?.servingSize ?? 100,
+      servingUnit: initialFood?.servingUnit ?? 'g',
       servingLabel,
       nutrients
-    });
+    };
 
-    // Reset form
-    setName('');
-    setNutrients(initialNutrients);
-    setNutrientInputs(formatNutrientInputs(initialNutrients));
+    if (initialFood && onUpdate) {
+      await onUpdate({
+        ...initialFood,
+        ...foodData,
+      });
+    } else {
+      await onAdd(foodData);
+    }
+
+    resetForm();
     onClose();
   };
 
@@ -162,7 +183,7 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
           <X />
         </button>
 
-        <h3 style={{ marginTop: 0, marginBottom: '20px' }}>Novo Alimento</h3>
+        <h3 style={{ marginTop: 0, marginBottom: '20px' }}>{isEditing ? 'Editar Alimento' : 'Novo Alimento'}</h3>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div ref={nameInputRef} style={{ position: 'relative' }}>
@@ -294,7 +315,7 @@ const AddCustomFoodModal: React.FC<AddCustomFoodModalProps> = ({ isOpen, onClose
               background: '#16a34a', color: '#fff', fontWeight: 600, cursor: 'pointer'
             }}
           >
-            Salvar Alimento
+            {isEditing ? 'Salvar Alterações' : 'Salvar Alimento'}
           </button>
         </form>
       </div>
