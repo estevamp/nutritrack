@@ -40,6 +40,30 @@ function computeTotals(meals: Record<MealType, MealEntry[]>): NutrientInfo {
   return totals;
 }
 
+function nutrientsForServings(food: FoodItem, servings: number): NutrientInfo {
+  return {
+    calories:     Math.round(food.nutrients.calories * servings),
+    protein:      Number((food.nutrients.protein * servings).toFixed(1)),
+    carbs:        Number((food.nutrients.carbs * servings).toFixed(1)),
+    sugar:        Number((food.nutrients.sugar * servings).toFixed(1)),
+    fat:          Number((food.nutrients.fat * servings).toFixed(1)),
+    saturatedFat: Number((food.nutrients.saturatedFat * servings).toFixed(1)),
+    fiber:        Number((food.nutrients.fiber * servings).toFixed(1)),
+    sodium:       Math.round(food.nutrients.sodium * servings),
+  };
+}
+
+function entryFromFood(food: FoodItem, servings: number): MealEntry {
+  return {
+    id: crypto.randomUUID(),
+    foodId: food.id,
+    foodName: food.name,
+    servingsConsumed: servings,
+    nutrients: nutrientsForServings(food, servings),
+    addedAt: new Date().toISOString(),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // useDayLog
 // ---------------------------------------------------------------------------
@@ -87,30 +111,11 @@ export function useDayLog(date: string) {
 
   const addFood = async (meal: MealType, food: FoodItem, servings: number) => {
     try {
-      const nutrients: NutrientInfo = {
-        calories:     Math.round(food.nutrients.calories * servings),
-        protein:      Number((food.nutrients.protein * servings).toFixed(1)),
-        carbs:        Number((food.nutrients.carbs * servings).toFixed(1)),
-        sugar:        Number((food.nutrients.sugar * servings).toFixed(1)),
-        fat:          Number((food.nutrients.fat * servings).toFixed(1)),
-        saturatedFat: Number((food.nutrients.saturatedFat * servings).toFixed(1)),
-        fiber:        Number((food.nutrients.fiber * servings).toFixed(1)),
-        sodium:       Math.round(food.nutrients.sodium * servings),
-      };
-
-      const entry: MealEntry = {
-        id: crypto.randomUUID(),
-        foodId: food.id,
-        foodName: food.name,
-        servingsConsumed: servings,
-        nutrients,
-        addedAt: new Date().toISOString(),
-      };
-
       if (!dayLog) return;
 
       if (!user) return;
       const userId = user.uid;
+      const entry = entryFromFood(food, servings);
       const updatedMeals = {
         ...dayLog.meals,
         [meal]: [...dayLog.meals[meal], entry],
@@ -125,6 +130,32 @@ export function useDayLog(date: string) {
       await refreshLog();
     } catch (error) {
       console.error('Erro ao adicionar alimento:', error);
+      throw error;
+    }
+  };
+
+  const addFoods = async (meal: MealType, foodsToAdd: Array<{ food: FoodItem; servings: number }>) => {
+    try {
+      if (!dayLog) return;
+      if (!user) return;
+      if (foodsToAdd.length === 0) return;
+
+      const userId = user.uid;
+      const entries = foodsToAdd.map(({ food, servings }) => entryFromFood(food, servings));
+      const updatedMeals = {
+        ...dayLog.meals,
+        [meal]: [...dayLog.meals[meal], ...entries],
+      };
+      const updatedLog: DayLog = {
+        ...dayLog,
+        meals: updatedMeals,
+        totals: computeTotals(updatedMeals),
+      };
+
+      await saveDayLog(userId, updatedLog);
+      await refreshLog();
+    } catch (error) {
+      console.error('Erro ao adicionar alimentos:', error);
       throw error;
     }
   };
@@ -224,7 +255,7 @@ export function useDayLog(date: string) {
     return Math.min(Math.round((current / dayLog.goals[nutrient]) * 100), 200);
   };
 
-  return { dayLog, isLoading, addFood, removeEntry, updateEntry, totals, mealTotals, progressPercent, refreshLog };
+  return { dayLog, isLoading, addFood, addFoods, removeEntry, updateEntry, totals, mealTotals, progressPercent, refreshLog };
 }
 
 // ---------------------------------------------------------------------------

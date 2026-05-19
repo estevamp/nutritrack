@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useFoodDatabase } from '../hooks/useFoodDatabase';
 import type { FoodItem, NutrientInfo, MealEntry, MealType } from '../types';
-import { Barcode, Search, X, ChevronRight, Plus, Minus, Edit2, Coffee, Utensils, Moon, Apple } from 'lucide-react';
+import { Barcode, Camera, Search, X, ChevronRight, Plus, Minus, Edit2, Coffee, Utensils, Moon, Apple } from 'lucide-react';
 import FoodCodeScannerModal from './FoodCodeScannerModal';
+import MealPhotoModal, { type MealPhotoSelection } from './MealPhotoModal';
 
 interface FoodSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectFood: (food: FoodItem, servings: number) => void;
+  onSelectFoods?: (items: MealPhotoSelection[]) => void | Promise<void>;
   editingEntry?: MealEntry | null;
   selectedMeal?: MealType;
   onSelectMeal?: (meal: MealType) => void;
@@ -41,6 +43,7 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
   isOpen,
   onClose,
   onSelectFood,
+  onSelectFoods,
   editingEntry,
   selectedMeal,
   onSelectMeal,
@@ -53,6 +56,7 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
   const [servings, setServings] = useState(1);
   const [activeTab, setActiveTab] = useState<'all' | 'custom'>('all');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [isMealPhotoOpen, setIsMealPhotoOpen] = useState(false);
 
   // When editing an entry, pre-populate the modal with the food and servings
   useEffect(() => {
@@ -225,6 +229,32 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
                 )}
               </div>
 
+              {!editingEntry && (
+                <button
+                  type="button"
+                  onClick={() => setIsMealPhotoOpen(true)}
+                  style={{
+                    width: '100%',
+                    minHeight: '44px',
+                    marginBottom: '16px',
+                    padding: '11px 12px',
+                    borderRadius: '12px',
+                    border: '1px dashed #16a34a',
+                    background: '#f0fdf4',
+                    color: '#166534',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <Camera size={18} />
+                  Fotografar refeição
+                </button>
+              )}
+
               <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
                 <button 
                   onClick={() => setActiveTab('all')}
@@ -370,6 +400,21 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
           onClose();
         }}
         submitLabel="Salvar e adicionar"
+      />
+      <MealPhotoModal
+        isOpen={isMealPhotoOpen}
+        onClose={() => setIsMealPhotoOpen(false)}
+        onConfirm={async (items) => {
+          if (onSelectFoods) {
+            await onSelectFoods(items);
+          } else {
+            items.forEach(({ food, servings: itemServings }) => onSelectFood(food, itemServings));
+          }
+          setSelectedFood(null);
+          setQuery('');
+          setIsMealPhotoOpen(false);
+          setTimeout(onClose, 0);
+        }}
       />
     </div>
   );

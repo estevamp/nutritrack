@@ -6,13 +6,14 @@ import { useDayLog } from '../hooks/useDayLog';
 import NutrientSummaryCard from '../components/NutrientSummaryCard';
 import MealSection from '../components/MealSection';
 import FoodSearchModal from '../components/FoodSearchModal';
+import type { MealPhotoSelection } from '../components/MealPhotoModal';
 import type { MealType, FoodItem, MealEntry } from '../types';
 
 const HomePage: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
   
-  const { dayLog, isLoading, addFood, removeEntry, updateEntry, totals } = useDayLog(dateStr);
+  const { dayLog, isLoading, addFood, addFoods, removeEntry, updateEntry, totals } = useDayLog(dateStr);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [activeMeal, setActiveMeal] = useState<MealType>('breakfast');
   const [showMealSelector, setShowMealSelector] = useState(false);
@@ -48,6 +49,12 @@ const HomePage: React.FC = () => {
     } else {
       addFood(activeMeal, food, servings);
     }
+    setEditingEntry(null);
+  };
+
+  const handleSelectFoods = async (items: MealPhotoSelection[]) => {
+    if (editingEntry) return;
+    await addFoods(activeMeal, items);
     setEditingEntry(null);
   };
 
@@ -144,6 +151,7 @@ const HomePage: React.FC = () => {
           setShowMealSelector(false);
         }} 
         onSelectFood={handleSelectFood} 
+        onSelectFoods={handleSelectFoods}
         editingEntry={editingEntry}
         selectedMeal={activeMeal}
         onSelectMeal={setActiveMeal}
