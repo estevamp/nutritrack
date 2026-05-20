@@ -3,9 +3,26 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { getRecentLogs, getDayLog } from '.././services/db';
-import { type DayLog, type MealType } from '../types';
+import { type DayLog, type MealType, type NutrientGoals } from '../types';
 import { Calendar, ChevronRight, Edit2, Trash2, X } from 'lucide-react';
 import { useAuth } from '../auth/useAuth';
+
+type TrackedNutrient = keyof NutrientGoals;
+
+const nutrientCharts: Array<{
+  key: TrackedNutrient;
+  goalKey: `${TrackedNutrient}Meta`;
+  title: string;
+  unit: string;
+  color: string;
+}> = [
+  { key: 'protein', goalKey: 'proteinMeta', title: 'Proteínas', unit: 'g', color: 'var(--color-protein, #3b82f6)' },
+  { key: 'sugar', goalKey: 'sugarMeta', title: 'Açúcares', unit: 'g', color: 'var(--color-sugar, #a855f7)' },
+  { key: 'fat', goalKey: 'fatMeta', title: 'Gorduras', unit: 'g', color: 'var(--color-fat, #ec4899)' },
+  { key: 'carbs', goalKey: 'carbsMeta', title: 'Carbo', unit: 'g', color: 'var(--color-carbs, #eab308)' },
+  { key: 'fiber', goalKey: 'fiberMeta', title: 'Fibras', unit: 'g', color: 'var(--color-fiber, #14b8a6)' },
+  { key: 'sodium', goalKey: 'sodiumMeta', title: 'Sódio', unit: 'mg', color: 'var(--color-sodium, #6b7280)' },
+];
 
 const HistoryPage: React.FC = () => {
   const { user } = useAuth();
@@ -90,10 +107,54 @@ const HistoryPage: React.FC = () => {
       .slice(-7)
       .map(log => ({
         name: format(parseISO(log.date), 'dd/MM'),
-        calorias: log.totals.calories,
-        meta: log.goals.calories
+        calories: log.totals.calories,
+        caloriesMeta: log.goals.calories,
+        protein: log.totals.protein,
+        proteinMeta: log.goals.protein,
+        sugar: log.totals.sugar,
+        sugarMeta: log.goals.sugar,
+        fat: log.totals.fat,
+        fatMeta: log.goals.fat,
+        carbs: log.totals.carbs,
+        carbsMeta: log.goals.carbs,
+        fiber: log.totals.fiber,
+        fiberMeta: log.goals.fiber,
+        sodium: log.totals.sodium,
+        sodiumMeta: log.goals.sodium,
       }));
   }, [logs]);
+
+  const renderChart = (
+    title: string,
+    dataKey: string,
+    goalKey: string,
+    color: string,
+    unit: string,
+    height: number,
+    strokeWidth: number
+  ) => (
+    <>
+      <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', color: '#6b7280' }}>
+        {title} (Últimos 7 dias)
+      </h4>
+      <div style={{ width: '100%', minWidth: 0, height, minHeight: height }}>
+        <ResponsiveContainer width="100%" height={height} minWidth={0} debounce={50}>
+          <LineChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#9ca3af' }} />
+            <YAxis hide />
+            <Tooltip
+              formatter={(value, name) => [`${Number(value).toLocaleString('pt-BR')} ${unit}`, name === goalKey ? 'Meta' : title]}
+              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+              itemStyle={{ fontWeight: 600 }}
+            />
+            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={strokeWidth} dot={{ r: 3, fill: color }} activeDot={{ r: 5 }} />
+            <Line type="monotone" dataKey={goalKey} stroke="#e5e7eb" strokeDasharray="5 5" dot={false} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </>
+  );
 
   if (isLoading) return <div style={{ padding: '20px', textAlign: 'center' }}>Carregando...</div>;
 
@@ -106,22 +167,29 @@ const HistoryPage: React.FC = () => {
         backgroundColor: '#fff', padding: '16px', borderRadius: '16px', 
         boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '24px' 
       }}>
-        <h4 style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#6b7280' }}>Calorias (Últimos 7 dias)</h4>
-        <div style={{ width: '100%', minWidth: 0, height: 200, minHeight: 200 }}>
-          <ResponsiveContainer width="100%" height={200} minWidth={0} debounce={50}>
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#9ca3af' }} />
-              <YAxis hide />
-              <Tooltip 
-                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                itemStyle={{ fontWeight: 600 }}
-              />
-              <Line type="monotone" dataKey="calorias" stroke="#16a34a" strokeWidth={3} dot={{ r: 4, fill: '#16a34a' }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="meta" stroke="#e5e7eb" strokeDasharray="5 5" dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {renderChart('Calorias', 'calories', 'caloriesMeta', 'var(--color-calories, #f97316)', 'kcal', 200, 3)}
+      </div>
+
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+        gap: '12px',
+        marginBottom: '24px'
+      }}>
+        {nutrientCharts.map(chart => (
+          <div
+            key={chart.key}
+            style={{
+              backgroundColor: '#fff',
+              padding: '12px',
+              borderRadius: '16px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              minWidth: 0
+            }}
+          >
+            {renderChart(chart.title, chart.key, chart.goalKey, chart.color, chart.unit, 140, 2)}
+          </div>
+        ))}
       </div>
 
       {/* List Section */}
