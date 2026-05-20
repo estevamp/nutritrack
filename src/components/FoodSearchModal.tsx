@@ -39,6 +39,46 @@ const mealOptions: Array<{ id: MealType; label: string; icon: React.ComponentTyp
 const SERVING_STEP = 0.25;
 const MIN_SERVINGS = 0.25;
 
+const emptyNutrients: NutrientInfo = {
+  calories: 0,
+  protein: 0,
+  carbs: 0,
+  sugar: 0,
+  fat: 0,
+  saturatedFat: 0,
+  fiber: 0,
+  sodium: 0,
+};
+
+function nutrientsPerServing(entry: MealEntry): NutrientInfo {
+  const servings = entry.servingsConsumed > 0 ? entry.servingsConsumed : 1;
+
+  return {
+    calories: Math.round(entry.nutrients.calories / servings),
+    protein: Number((entry.nutrients.protein / servings).toFixed(1)),
+    carbs: Number((entry.nutrients.carbs / servings).toFixed(1)),
+    sugar: Number((entry.nutrients.sugar / servings).toFixed(1)),
+    fat: Number((entry.nutrients.fat / servings).toFixed(1)),
+    saturatedFat: Number((entry.nutrients.saturatedFat / servings).toFixed(1)),
+    fiber: Number((entry.nutrients.fiber / servings).toFixed(1)),
+    sodium: Math.round(entry.nutrients.sodium / servings),
+  };
+}
+
+function mealEntryAsFood(entry: MealEntry, food?: FoodItem): FoodItem {
+  return {
+    id: entry.foodId,
+    name: entry.foodName,
+    brand: food?.brand,
+    category: food?.category ?? 'other',
+    servingSize: food?.servingSize ?? 1,
+    servingUnit: food?.servingUnit ?? 'unit',
+    servingLabel: food?.servingLabel ?? '1 porção',
+    nutrients: nutrientsPerServing(entry),
+    isCustom: food?.isCustom ?? false,
+  };
+}
+
 const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
   isOpen,
   onClose,
@@ -57,18 +97,17 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
   const [activeTab, setActiveTab] = useState<'all' | 'custom'>('all');
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isMealPhotoOpen, setIsMealPhotoOpen] = useState(false);
+  const isEditingMealEntry = Boolean(editingEntry);
 
   // When editing an entry, pre-populate the modal with the food and servings
   useEffect(() => {
     if (editingEntry && isOpen) {
-      // Find the food in the database
       const food = foods.find(f => f.id === editingEntry.foodId);
-      if (food) {
-        queueMicrotask(() => {
-          setSelectedFood(food);
-          setServings(editingEntry.servingsConsumed);
-        });
-      }
+      queueMicrotask(() => {
+        setSelectedFood(mealEntryAsFood(editingEntry, food));
+        setServings(Math.max(MIN_SERVINGS, editingEntry.servingsConsumed || 1));
+        setQuery('');
+      });
     } else if (!editingEntry) {
       queueMicrotask(() => {
         setSelectedFood(null);
@@ -95,6 +134,7 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
   if (!isOpen) return null;
 
   const handleSelect = (food: FoodItem) => {
+    if (isEditingMealEntry) return;
     setSelectedFood(food);
     setServings(1);
   };
@@ -113,6 +153,10 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
       calories: Math.round(nutrients.calories * qty),
       protein: (nutrients.protein * qty).toFixed(1)
     };
+  };
+
+  const adjustServings = (amount: number) => {
+    setServings(current => Number(Math.max(MIN_SERVINGS, current + amount).toFixed(2)));
   };
 
   return (
@@ -142,11 +186,11 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
       }}>
         {/* Header */}
         <div style={{ padding: '16px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0 }}>{editingEntry ? 'Editar refeição' : 'Cadastrar refeição'}</h3>
+          <h3 style={{ margin: 0 }}>{isEditingMealEntry ? 'Editar quantidade' : 'Cadastrar refeição'}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X /></button>
         </div>
 
-        {!selectedFood ? (
+        {!selectedFood && !isEditingMealEntry ? (
           <>
             {/* Search & Tabs */}
             <div style={{ padding: '16px' }}>
@@ -330,13 +374,20 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
           /* Selection Detail */
           <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div style={{ textAlign: 'center' }}>
-              <h2 style={{ margin: '0 0 8px 0' }}>{selectedFood.name}</h2>
-              <p style={{ color: '#6b7280', margin: 0 }}>{selectedFood.servingLabel}</p>
+              <h2 style={{ margin: '0 0 8px 0' }}>{selectedFood?.name ?? editingEntry?.foodName}</h2>
+              <p style={{ color: '#6b7280', margin: 0 }}>
+                {selectedFood?.servingLabel ?? '1 porção'}
+              </p>
+              {isEditingMealEntry && (
+                <p style={{ color: '#6b7280', margin: '8px 0 0', fontSize: '0.9rem' }}>
+                  Ajuste apenas a quantidade consumida nesta refeição.
+                </p>
+              )}
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '24px' }}>
               <button 
-                onClick={() => setServings(Math.max(MIN_SERVINGS, servings - SERVING_STEP))}
+                onClick={() => adjustServings(-SERVING_STEP)}
                 style={{ width: '48px', height: '48px', borderRadius: '50%', border: '1px solid #e5e7eb', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <Minus />
@@ -346,7 +397,7 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
                 <div style={{ fontSize: '0.85rem', color: '#6b7280' }}>porções</div>
               </div>
               <button 
-                onClick={() => setServings(servings + SERVING_STEP)}
+                onClick={() => adjustServings(SERVING_STEP)}
                 style={{ width: '48px', height: '48px', borderRadius: '50%', border: '1px solid #e5e7eb', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 <Plus />
@@ -359,13 +410,13 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
             }}>
               <div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#f97316' }}>
-                  {calculatePreview(selectedFood.nutrients, servings).calories}
+                  {calculatePreview(selectedFood?.nutrients ?? emptyNutrients, servings).calories}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>kcal</div>
               </div>
               <div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#3b82f6' }}>
-                  {calculatePreview(selectedFood.nutrients, servings).protein}g
+                  {calculatePreview(selectedFood?.nutrients ?? emptyNutrients, servings).protein}g
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#6b7280' }}>proteína</div>
               </div>
@@ -373,16 +424,22 @@ const FoodSearchModal: React.FC<FoodSearchModalProps> = ({
 
             <div style={{ marginTop: 'auto', display: 'flex', gap: '12px' }}>
               <button 
-                onClick={() => setSelectedFood(null)}
+                onClick={() => {
+                  if (isEditingMealEntry) {
+                    onClose();
+                    return;
+                  }
+                  setSelectedFood(null);
+                }}
                 style={{ flex: 1, padding: '14px', borderRadius: '12px', border: '1px solid #e5e7eb', background: '#fff', fontWeight: 600 }}
               >
-                Voltar
+                {isEditingMealEntry ? 'Cancelar' : 'Voltar'}
               </button>
               <button 
                 onClick={handleConfirm}
                 style={{ flex: 2, padding: '14px', borderRadius: '12px', border: 'none', background: '#16a34a', color: '#fff', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
               >
-                {editingEntry ? <><Edit2 size={18} /> Salvar</> : <><Plus size={18} /> Adicionar</>}
+                {isEditingMealEntry ? <><Edit2 size={18} /> Salvar quantidade</> : <><Plus size={18} /> Adicionar</>}
               </button>
             </div>
           </div>

@@ -193,7 +193,8 @@ export function useDayLog(date: string) {
         ...dayLog.meals,
         [meal]: dayLog.meals[meal].map(e => {
           if (e.id !== entryId) return e;
-          const ratio = servings / e.servingsConsumed;
+          const previousServings = e.servingsConsumed > 0 ? e.servingsConsumed : 1;
+          const ratio = servings / previousServings;
           const n = e.nutrients;
           return {
             ...e,
