@@ -21,6 +21,7 @@ registerRoute(
     plugins: [],
   })
 );
+ 
 
 // Handle CSS, JS, and worker requests
 registerRoute(
