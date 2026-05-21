@@ -240,12 +240,13 @@ export async function getWeightEntries(userId: string): Promise<WeightEntry[]> {
 
   const q = query(
     entriesRef,
-    where('userId', '==', userId),
-    orderBy('date', 'desc')
+    where('userId', '==', userId)
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<WeightEntry, 'id'>) } as WeightEntry));
+  return snapshot.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<WeightEntry, 'id'>) } as WeightEntry))
+    .sort((a, b) => b.date.localeCompare(a.date));
 }
 
 export async function deleteWeightEntry(userId: string, date: string): Promise<void> {
