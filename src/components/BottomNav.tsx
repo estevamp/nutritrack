@@ -1,12 +1,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Utensils, BarChart2, Settings } from 'lucide-react';
+import { Home, Utensils, BarChart2, Scale, Settings } from 'lucide-react';
 
 const BottomNav: React.FC = () => {
   const navItems = [
     { to: '/', label: 'Hoje', icon: Home },
     { to: '/foods', label: 'Alimentos', icon: Utensils },
     { to: '/history', label: 'Histórico', icon: BarChart2 },
+    { to: '/weight', label: 'Peso', icon: Scale },
     { to: '/settings', label: 'Config', icon: Settings },
   ];
 

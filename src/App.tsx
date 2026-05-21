@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import HomePage from './pages/HomePage';
 import FoodsPage from './pages/FoodsPage';
 import HistoryPage from './pages/HistoryPage';
+import WeightPage from './pages/WeightPage';
 import SettingsPage from './pages/SettingsPage';
 import UpdatePrompt from './components/UpdatePrompt';
 import LoginPage from './pages/LoginPage';
@@ -21,6 +22,7 @@ function App() {
           <Route index element={<HomePage />} />
           <Route path="foods" element={<FoodsPage />} />
           <Route path="history" element={<HistoryPage />} />
+          <Route path="weight" element={<WeightPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
