@@ -60,4 +60,12 @@ export interface NutrientGoals {
 export interface UserSettings {
   goals: NutrientGoals;
   name: string;
+  heightCm?: number;
+  targetWeightKg?: number;
+}
+
+export interface WeightEntry {
+  id?: string;
+  date: string;           // formato YYYY-MM-DD
+  weightKg: number;
 }

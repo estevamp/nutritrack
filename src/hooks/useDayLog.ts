@@ -291,7 +291,7 @@ export function useGoals() {
     if (!user) return;
     const userId = user.uid;
     const existing = await getSettings(userId);
-    await saveSettings(userId, { name: existing?.name ?? 'Usuário', goals: newGoals });
+    await saveSettings(userId, { ...existing, name: existing?.name ?? 'Usuário', goals: newGoals });
     setGoals(newGoals);
   };
 

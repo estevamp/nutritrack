@@ -10,6 +10,8 @@ const SettingsPage: React.FC = () => {
   const { signOut } = useAuth();
   const { goals, saveGoals, isLoading: goalsLoading } = useGoals();
   const [userName, setUserName] = useState('Usuário');
+  const [heightCm, setHeightCm] = useState('');
+  const [targetWeightKg, setTargetWeightKg] = useState('');
   const [localGoals, setLocalGoals] = useState(goals);
   const [isSaving, setIsSaving] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -20,6 +22,8 @@ const SettingsPage: React.FC = () => {
       const settings = await getSettings(auth.currentUser.uid);
       if (settings) {
         setUserName(settings.name);
+        setHeightCm(settings.heightCm ? String(settings.heightCm) : '');
+        setTargetWeightKg(settings.targetWeightKg ? String(settings.targetWeightKg) : '');
         setLocalGoals(settings.goals);
       }
     };
@@ -29,7 +33,15 @@ const SettingsPage: React.FC = () => {
   const handleSave = async () => {
     setIsSaving(true);
     if (auth.currentUser) {
-      await saveSettings(auth.currentUser.uid, { name: userName, goals: localGoals });
+      const parsedHeightCm = Number(heightCm);
+      const parsedTargetWeightKg = Number(targetWeightKg);
+
+      await saveSettings(auth.currentUser.uid, {
+        name: userName,
+        goals: localGoals,
+        heightCm: parsedHeightCm > 0 ? parsedHeightCm : undefined,
+        targetWeightKg: parsedTargetWeightKg > 0 ? parsedTargetWeightKg : undefined,
+      });
       await saveGoals(localGoals);
     }
     setIsSaving(false);
@@ -106,6 +118,32 @@ const SettingsPage: React.FC = () => {
             style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: '1rem' }}
           />
         </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>Altura (cm)</label>
+            <input
+              type="number"
+              min="0"
+              inputMode="decimal"
+              value={heightCm}
+              onChange={e => setHeightCm(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: '1rem' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280', marginBottom: '4px' }}>Peso alvo (kg)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.1"
+              inputMode="decimal"
+              value={targetWeightKg}
+              onChange={e => setTargetWeightKg(e.target.value)}
+              style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #e5e7eb', fontSize: '1rem' }}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Goals Section */}
@@ -142,7 +180,7 @@ const SettingsPage: React.FC = () => {
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
           }}
         >
-          <Save size={20} /> {isSaving ? 'Salvando...' : 'Salvar Metas'}
+          <Save size={20} /> {isSaving ? 'Salvando...' : 'Salvar Configurações'}
         </button>
       </div>
 

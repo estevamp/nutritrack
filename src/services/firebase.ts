@@ -7,6 +7,7 @@
  *   - settings/{uid}
  *   - foods/{autoId} with userId
  *   - dayLogs/{autoId} with userId + date (unique per user/date via query)
+ *   - weightEntries/{autoId} with userId + date (unique per user/date via query)
  */
 
 import { initializeApp, type FirebaseApp } from 'firebase/app';
@@ -28,7 +29,7 @@ import {
   type QueryConstraint,
 } from 'firebase/firestore';
 import { getAuth, type Auth, onAuthStateChanged, type User, setPersistence, browserLocalPersistence } from 'firebase/auth';
-import type { DayLog, FoodItem, MealEntry, MealType, UserSettings } from '../types';
+import type { DayLog, FoodItem, MealEntry, MealType, UserSettings, WeightEntry } from '../types';
 
 type StoredFoodItem = Omit<FoodItem, 'id'> & {
   id?: string;
@@ -44,9 +45,16 @@ type StoredDayLog = Omit<DayLog, 'id'> & {
   updatedAt?: Timestamp;
 };
 
+type StoredWeightEntry = WeightEntry & {
+  userId?: string;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
+
 type ImportPayload = {
   foods?: StoredFoodItem[];
   dayLogs?: StoredDayLog[];
+  weightEntries?: StoredWeightEntry[];
   settings?: UserSettings;
 };
 
@@ -116,6 +124,7 @@ export function initFirebase(): void {
 const FOODS_COLLECTION = 'foods';
 const DAYLOGS_COLLECTION = 'dayLogs';
 const SETTINGS_COLLECTION = 'settings';
+const WEIGHT_ENTRIES_COLLECTION = 'weightEntries';
 
 // ==================== Settings (1 doc per user) ====================
 
@@ -335,6 +344,54 @@ export async function addMealEntryToFirestore(
   await saveDayLogToFirestore(userId, { ...log, meals });
 }
 
+// ==================== Weight Entries ====================
+
+export async function getWeightEntriesFromFirestore(userId: string): Promise<WeightEntry[]> {
+  ensureInitialized();
+  const entriesRef = collection(db, WEIGHT_ENTRIES_COLLECTION);
+
+  const q = query(
+    entriesRef,
+    where('userId', '==', userId),
+    orderBy('date', 'desc')
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as StoredWeightEntry) } as WeightEntry));
+}
+
+export async function saveWeightEntryToFirestore(userId: string, entry: WeightEntry): Promise<string> {
+  await requireUser();
+  const entriesRef = collection(db, WEIGHT_ENTRIES_COLLECTION);
+
+  const q = query(
+    entriesRef,
+    where('userId', '==', userId),
+    where('date', '==', entry.date),
+    limit(1)
+  );
+
+  const existing = await getDocs(q);
+  const payload = {
+    userId,
+    date: entry.date,
+    weightKg: entry.weightKg,
+    updatedAt: Timestamp.now(),
+  };
+
+  if (existing.empty) {
+    const docRef = await addDoc(entriesRef, {
+      ...payload,
+      createdAt: Timestamp.now(),
+    });
+    return docRef.id;
+  }
+
+  const docId = existing.docs[0].id;
+  await setDoc(doc(db, WEIGHT_ENTRIES_COLLECTION, docId), payload, { merge: true });
+  return docId;
+}
+
 // ==================== Export / Import ====================
 
 export async function exportAllDataFromFirestore(): Promise<string> {
@@ -342,12 +399,14 @@ export async function exportAllDataFromFirestore(): Promise<string> {
 
   const foods = await getAllFoodsFromFirestore(user.uid);
   const dayLogs = await getDayLogsFromFirestore(user.uid);
+  const weightEntries = await getWeightEntriesFromFirestore(user.uid);
   const settings = await getSettingsFromFirestore(user.uid);
 
   return JSON.stringify(
     {
       foods,
       dayLogs,
+      weightEntries,
       settings,
       exportedAt: new Date().toISOString(),
     },
@@ -392,6 +451,13 @@ export async function importDataToFirestore(jsonString: string): Promise<void> {
     for (const log of data.dayLogs) {
       // keep same behavior: upsert by (userId,date)
       await saveDayLogToFirestore(user.uid, { ...log, userId: user.uid } as DayLog);
+    }
+  }
+
+  // WeightEntries
+  if (Array.isArray(data.weightEntries)) {
+    for (const entry of data.weightEntries) {
+      await saveWeightEntryToFirestore(user.uid, entry);
     }
   }
 

@@ -19,15 +19,17 @@ import {
   Timestamp,
   orderBy,
   limit,
+  deleteField,
   type QueryConstraint,
 } from 'firebase/firestore';
 
 import { db } from './firebase';
-import type { DayLog, Food, NutrientGoals } from '../types';
+import type { DayLog, Food, UserSettings, WeightEntry } from '../types';
 
 const LOGS_COLLECTION = 'dayLogs';
 const FOODS_COLLECTION = 'foods';
 const SETTINGS_COLLECTION = 'settings';
+const WEIGHT_ENTRIES_COLLECTION = 'weightEntries';
 
 // ==================== Day Logs ====================
 
@@ -177,19 +179,86 @@ export async function getFoodById(id: string): Promise<Food | null> {
 
 // ==================== Settings ====================
 
-type StoredSettings = { name: string; goals: NutrientGoals };
-
-export async function getSettings(userId: string): Promise<StoredSettings | null> {
+export async function getSettings(userId: string): Promise<UserSettings | null> {
   const settingsRef = doc(db, SETTINGS_COLLECTION, userId);
   const snapshot = await getDoc(settingsRef);
   if (!snapshot.exists()) return null;
-  return snapshot.data() as StoredSettings;
+  return snapshot.data() as UserSettings;
 }
 
 export async function saveSettings(
   userId: string,
-  settings: StoredSettings
+  settings: UserSettings
 ): Promise<void> {
   const settingsRef = doc(db, SETTINGS_COLLECTION, userId);
-  await setDoc(settingsRef, settings, { merge: true });
+  await setDoc(
+    settingsRef,
+    {
+      ...settings,
+      heightCm: settings.heightCm ?? deleteField(),
+      targetWeightKg: settings.targetWeightKg ?? deleteField(),
+    },
+    { merge: true }
+  );
+}
+
+// ==================== Weight Entries ====================
+
+export async function saveWeightEntry(userId: string, entry: WeightEntry): Promise<string> {
+  const entriesRef = collection(db, WEIGHT_ENTRIES_COLLECTION);
+
+  const q = query(
+    entriesRef,
+    where('userId', '==', userId),
+    where('date', '==', entry.date),
+    limit(1)
+  );
+
+  const existingDocs = await getDocs(q);
+  const payload = {
+    userId,
+    date: entry.date,
+    weightKg: entry.weightKg,
+    updatedAt: Timestamp.now(),
+  };
+
+  if (existingDocs.empty) {
+    const docRef = await addDoc(entriesRef, {
+      ...payload,
+      createdAt: Timestamp.now(),
+    });
+    return docRef.id;
+  }
+
+  const docId = existingDocs.docs[0].id;
+  await updateDoc(doc(db, WEIGHT_ENTRIES_COLLECTION, docId), payload);
+  return docId;
+}
+
+export async function getWeightEntries(userId: string): Promise<WeightEntry[]> {
+  const entriesRef = collection(db, WEIGHT_ENTRIES_COLLECTION);
+
+  const q = query(
+    entriesRef,
+    where('userId', '==', userId),
+    orderBy('date', 'desc')
+  );
+
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<WeightEntry, 'id'>) } as WeightEntry));
+}
+
+export async function deleteWeightEntry(userId: string, date: string): Promise<void> {
+  const entriesRef = collection(db, WEIGHT_ENTRIES_COLLECTION);
+
+  const q = query(
+    entriesRef,
+    where('userId', '==', userId),
+    where('date', '==', date)
+  );
+
+  const snapshot = await getDocs(q);
+  for (const d of snapshot.docs) {
+    await deleteDoc(d.ref);
+  }
 }
