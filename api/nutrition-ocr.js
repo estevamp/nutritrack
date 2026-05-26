@@ -1,4 +1,4 @@
-const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-lite:generateContent';
+const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent';
 
 // Cache simples para evitar requisições duplicadas
 const requestCache = new Map();
